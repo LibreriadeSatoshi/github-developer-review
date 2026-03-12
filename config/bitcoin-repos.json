@@ -1,0 +1,34 @@
+{
+  "curated": {
+    "bitcoin/bitcoin": "core",
+    "lightning/bolts": "core",
+    "lightningnetwork/lnd": "core",
+    "ElementsProject/lightning": "core",
+    "ElementsProject/elements": "core",
+    "bitcoin/bips": "core",
+    "btcsuite/btcd": "core",
+    "rust-bitcoin/rust-bitcoin": "core",
+    "bitcoindevkit/bdk": "core",
+    "mempool/mempool": "ecosystem",
+    "blockstream/esplora": "ecosystem",
+    "BlueWallet/BlueWallet": "ecosystem",
+    "ArcadeLabsInc/arc": "ecosystem",
+    "fedimint/fedimint": "ecosystem",
+    "cashubtc/cashu": "ecosystem",
+    "ACINQ/eclair": "ecosystem",
+    "ACINQ/phoenix": "ecosystem",
+    "lightningdevkit/rust-lightning": "core",
+    "bitcoinjs/bitcoinjs-lib": "core",
+    "btcpayserver/btcpayserver": "ecosystem",
+    "getAlby/alby-hub": "ecosystem",
+    "standardsats/breez-sdk": "ecosystem",
+    "bitcoin-core/secp256k1": "core",
+    "ZeusLN/zeus": "ecosystem",
+    "sparrowwallet/sparrow": "ecosystem"
+  },
+  "keywords": {
+    "core": ["bitcoin", "btc", "lightning", "ldk", "bdk"],
+    "ecosystem": ["cashu", "fedimint", "nostr-wallet", "lnurl", "bolt11", "bolt12"],
+    "adjacent": ["nostr", "rgb-protocol", "dlc", "miniscript", "taproot"]
+  }
+}
