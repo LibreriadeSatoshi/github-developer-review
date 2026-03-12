@@ -40,6 +40,14 @@ describe("ErrorBanner", () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
+  it("renders not-found variant with red styling and custom message", () => {
+    render(<ErrorBanner variant="not-found" message='User "satoshi" not found on GitHub.' />);
+    const banner = screen.getByRole("alert");
+    expect(banner).toBeInTheDocument();
+    expect(banner.className).toMatch(/red/);
+    expect(screen.getByText('User "satoshi" not found on GitHub.')).toBeInTheDocument();
+  });
+
   it("renders nothing when no variant provided", () => {
     const { container } = render(<ErrorBanner />);
     expect(container.firstChild).toBeNull();

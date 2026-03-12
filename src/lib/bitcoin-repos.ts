@@ -59,7 +59,7 @@ export function classifyRepo(
 }
 
 export function classifyRepos(
-  repos: { nameWithOwner: string; description?: string; topics?: string[] }[]
+  repos: { nameWithOwner: string; url?: string; description?: string; topics?: string[] }[]
 ): Map<string, RepoClassification> {
   const result = new Map<string, RepoClassification>();
   for (const repo of repos) {
@@ -68,6 +68,7 @@ export function classifyRepos(
       topics: repo.topics,
     });
     if (classification) {
+      classification.url = repo.url;
       result.set(repo.nameWithOwner, classification);
     }
   }

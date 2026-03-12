@@ -16,7 +16,26 @@ vi.mock("@/lib/date-utils", () => ({
   ]),
 }));
 
-function makeGraphQLResponse(login: string, contributions: object[] = []) {
+function makeRepoEntry(nameWithOwner: string, count: number, description?: string, topics?: string[]) {
+  return {
+    repository: {
+      nameWithOwner,
+      url: `https://github.com/${nameWithOwner}`,
+      description: description ?? null,
+      repositoryTopics: {
+        nodes: (topics ?? []).map((name) => ({ topic: { name } })),
+      },
+    },
+    contributions: { totalCount: count },
+  };
+}
+
+function makeGraphQLResponse(login: string, overrides?: {
+  commits?: ReturnType<typeof makeRepoEntry>[];
+  prs?: ReturnType<typeof makeRepoEntry>[];
+  reviews?: ReturnType<typeof makeRepoEntry>[];
+  issues?: number;
+}) {
   return {
     data: {
       user: {
@@ -27,26 +46,26 @@ function makeGraphQLResponse(login: string, contributions: object[] = []) {
         createdAt: "2020-01-01T00:00:00Z",
         contributionsCollection: {
           totalCommitContributions: 100,
-          commitContributionsByRepository: contributions.length
-            ? contributions
-            : [
-                {
-                  repository: {
-                    nameWithOwner: "bitcoin/bitcoin",
-                    description: "Bitcoin Core integration/staging tree",
-                    repositoryTopics: {
-                      nodes: [
-                        { topic: { name: "bitcoin" } },
-                        { topic: { name: "cryptocurrency" } },
-                      ],
-                    },
-                  },
-                  contributions: { totalCount: 50 },
-                },
-              ],
-          issueContributions: { totalCount: 10 },
-          pullRequestContributions: { totalCount: 5 },
-          pullRequestReviewContributions: { totalCount: 3 },
+          commitContributionsByRepository: overrides?.commits ?? [
+            makeRepoEntry("bitcoin/bitcoin", 50, "Bitcoin Core integration/staging tree", ["bitcoin", "cryptocurrency"]),
+          ],
+          issueContributions: { totalCount: overrides?.issues ?? 10 },
+          pullRequestContributionsByRepository: overrides?.prs ?? [
+            makeRepoEntry("bitcoin/bitcoin", 5, "Bitcoin Core integration/staging tree", ["bitcoin", "cryptocurrency"]),
+          ],
+          pullRequestReviewContributionsByRepository: overrides?.reviews ?? [
+            makeRepoEntry("bitcoin/bitcoin", 3, "Bitcoin Core integration/staging tree", ["bitcoin", "cryptocurrency"]),
+          ],
+          contributionCalendar: {
+            weeks: [
+              {
+                contributionDays: [
+                  { date: "2024-06-01", contributionCount: 3, color: "#40c463" },
+                  { date: "2024-06-02", contributionCount: 0, color: "#ebedf0" },
+                ],
+              },
+            ],
+          },
         },
       },
     },
@@ -136,8 +155,9 @@ describe("github-graphql", () => {
               totalCommitContributions: 0,
               commitContributionsByRepository: [],
               issueContributions: { totalCount: 0 },
-              pullRequestContributions: { totalCount: 0 },
-              pullRequestReviewContributions: { totalCount: 0 },
+              pullRequestContributionsByRepository: [],
+              pullRequestReviewContributionsByRepository: [],
+              contributionCalendar: { weeks: [] },
             },
           },
         },
@@ -156,36 +176,20 @@ describe("github-graphql", () => {
   });
 
   it("fetches all contributions by merging year ranges", async () => {
+    const commits = [makeRepoEntry("bitcoin/bitcoin", 30, "Bitcoin Core", ["bitcoin"])];
+    const prs = [makeRepoEntry("bitcoin/bitcoin", 2, "Bitcoin Core", ["bitcoin"])];
+    const reviews = [makeRepoEntry("bitcoin/bitcoin", 1, "Bitcoin Core", ["bitcoin"])];
+
     vi.mocked(globalThis.fetch)
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () =>
-          makeGraphQLResponse("satoshi", [
-            {
-              repository: {
-                nameWithOwner: "bitcoin/bitcoin",
-                description: "Bitcoin Core",
-                repositoryTopics: { nodes: [{ topic: { name: "bitcoin" } }] },
-              },
-              contributions: { totalCount: 30 },
-            },
-          ]),
+        json: async () => makeGraphQLResponse("satoshi", { commits, prs, reviews }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () =>
-          makeGraphQLResponse("satoshi", [
-            {
-              repository: {
-                nameWithOwner: "bitcoin/bitcoin",
-                description: "Bitcoin Core",
-                repositoryTopics: { nodes: [{ topic: { name: "bitcoin" } }] },
-              },
-              contributions: { totalCount: 20 },
-            },
-          ]),
+        json: async () => makeGraphQLResponse("satoshi", { commits: [makeRepoEntry("bitcoin/bitcoin", 20, "Bitcoin Core", ["bitcoin"])], prs, reviews }),
       } as Response);
 
     const { fetchAllContributions } = await import("@/lib/github-graphql");
@@ -197,7 +201,6 @@ describe("github-graphql", () => {
     );
 
     expect(result.contributions.length).toBeGreaterThan(0);
-    // Should have merged/deduplicated repos
     const bitcoinContribs = result.contributions.filter(
       (c: ContributionItem) => c.repoNameWithOwner === "bitcoin/bitcoin"
     );
@@ -223,7 +226,19 @@ describe("github-graphql", () => {
     ).rejects.toThrow("Something went wrong");
   });
 
-  it("includes issue, PR, and review contributions", async () => {
+  it("includes commit, issue, PR, and review contributions with per-repo data", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () =>
+        makeGraphQLResponse("satoshi", {
+          commits: [makeRepoEntry("bitcoin/bitcoin", 50, "Bitcoin Core", ["bitcoin"])],
+          prs: [makeRepoEntry("lightning/lnd", 3, "Lightning Network Daemon", ["lightning"])],
+          reviews: [makeRepoEntry("bitcoin/bitcoin", 2, "Bitcoin Core", ["bitcoin"])],
+          issues: 10,
+        }),
+    } as Response);
+
     const { fetchContributions } = await import("@/lib/github-graphql");
 
     const result = await fetchContributions("satoshi", "test-token", {
@@ -236,6 +251,13 @@ describe("github-graphql", () => {
     expect(types).toContain("issue");
     expect(types).toContain("pr");
     expect(types).toContain("review");
+
+    // PR and review contributions should be per-repo, not aggregated
+    const prContrib = result.contributions.find((c) => c.type === "pr");
+    expect(prContrib?.repoNameWithOwner).toBe("lightning/lnd");
+
+    const reviewContrib = result.contributions.find((c) => c.type === "review");
+    expect(reviewContrib?.repoNameWithOwner).toBe("bitcoin/bitcoin");
   });
 
   it("sums all contribution types in totalContributions", async () => {
@@ -344,7 +366,19 @@ describe("github-graphql", () => {
     expect(result.login).toBe("satoshi");
   });
 
-  it("includes repo metadata in result", async () => {
+  it("includes repo metadata from commits, PRs, and reviews", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () =>
+        makeGraphQLResponse("satoshi", {
+          commits: [makeRepoEntry("bitcoin/bitcoin", 50, "Bitcoin Core", ["bitcoin"])],
+          prs: [makeRepoEntry("lightning/lnd", 3, "Lightning Network Daemon", ["lightning"])],
+          reviews: [makeRepoEntry("bitcoin/bitcoin", 2, "Bitcoin Core", ["bitcoin"])],
+          issues: 0,
+        }),
+    } as Response);
+
     const { fetchContributions } = await import("@/lib/github-graphql");
 
     const result = await fetchContributions("satoshi", "test-token", {
@@ -353,12 +387,19 @@ describe("github-graphql", () => {
     });
 
     expect(result.repoMetadata).toBeInstanceOf(Array);
-    expect(result.repoMetadata.length).toBe(1);
-    expect(result.repoMetadata[0]).toEqual({
+    expect(result.repoMetadata.length).toBe(2); // bitcoin/bitcoin + lightning/lnd
+
+    const bitcoinMeta = result.repoMetadata.find((m) => m.nameWithOwner === "bitcoin/bitcoin");
+    expect(bitcoinMeta).toEqual({
       nameWithOwner: "bitcoin/bitcoin",
-      description: "Bitcoin Core integration/staging tree",
-      topics: ["bitcoin", "cryptocurrency"],
+      url: "https://github.com/bitcoin/bitcoin",
+      description: "Bitcoin Core",
+      topics: ["bitcoin"],
     });
+
+    const lndMeta = result.repoMetadata.find((m) => m.nameWithOwner === "lightning/lnd");
+    expect(lndMeta).toBeDefined();
+    expect(lndMeta?.url).toBe("https://github.com/lightning/lnd");
   });
 
   it("throws specific error when user not found", async () => {
@@ -378,5 +419,26 @@ describe("github-graphql", () => {
         to: new Date("2025-01-01"),
       })
     ).rejects.toThrow(/not found/i);
+  });
+
+  it("uses __github_aggregated__ sentinel for issues only", async () => {
+    const { fetchContributions } = await import("@/lib/github-graphql");
+
+    const result = await fetchContributions("satoshi", "test-token", {
+      from: new Date("2024-01-01"),
+      to: new Date("2025-01-01"),
+    });
+
+    const aggregated = result.contributions.filter(
+      (c) => c.repoNameWithOwner === "__github_aggregated__"
+    );
+    // Only issues should use the aggregated sentinel
+    expect(aggregated.every((c) => c.type === "issue")).toBe(true);
+
+    // PRs and reviews should have real repo names
+    const prs = result.contributions.filter((c) => c.type === "pr");
+    expect(prs.every((c) => c.repoNameWithOwner !== "__github_aggregated__")).toBe(true);
+    const reviews = result.contributions.filter((c) => c.type === "review");
+    expect(reviews.every((c) => c.repoNameWithOwner !== "__github_aggregated__")).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
-import type { ContributionItem, DateRange } from "./types";
+import type { ContributionItem, ContributionCalendarWeek, DateRange } from "./types";
+import { AGGREGATED_SENTINEL } from "./types";
 import { getYearRanges } from "./date-utils";
 
 const GITHUB_GRAPHQL = "https://api.github.com/graphql";
@@ -14,9 +15,10 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
     createdAt
     contributionsCollection(from: $from, to: $to) {
       totalCommitContributions
-      commitContributionsByRepository {
+      commitContributionsByRepository(maxRepositories: 100) {
         repository {
           nameWithOwner
+          url
           description
           repositoryTopics(first: 10) {
             nodes { topic { name } }
@@ -29,11 +31,40 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
       issueContributions {
         totalCount
       }
-      pullRequestContributions {
-        totalCount
+      pullRequestContributionsByRepository(maxRepositories: 100) {
+        repository {
+          nameWithOwner
+          url
+          description
+          repositoryTopics(first: 10) {
+            nodes { topic { name } }
+          }
+        }
+        contributions {
+          totalCount
+        }
       }
-      pullRequestReviewContributions {
-        totalCount
+      pullRequestReviewContributionsByRepository(maxRepositories: 100) {
+        repository {
+          nameWithOwner
+          url
+          description
+          repositoryTopics(first: 10) {
+            nodes { topic { name } }
+          }
+        }
+        contributions {
+          totalCount
+        }
+      }
+      contributionCalendar {
+        weeks {
+          contributionDays {
+            date
+            contributionCount
+            color
+          }
+        }
       }
     }
   }
@@ -41,6 +72,16 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
 
 interface RepositoryTopic {
   topic: { name: string };
+}
+
+interface RepoContributionsByRepository {
+  repository: {
+    nameWithOwner: string;
+    url: string;
+    description: string | null;
+    repositoryTopics: { nodes: RepositoryTopic[] };
+  };
+  contributions: { totalCount: number };
 }
 
 interface GraphQLContributionsResponse {
@@ -53,17 +94,19 @@ interface GraphQLContributionsResponse {
       createdAt: string;
       contributionsCollection: {
         totalCommitContributions: number;
-        commitContributionsByRepository: {
-          repository: {
-            nameWithOwner: string;
-            description: string | null;
-            repositoryTopics: { nodes: RepositoryTopic[] };
-          };
-          contributions: { totalCount: number };
-        }[];
+        commitContributionsByRepository: RepoContributionsByRepository[];
         issueContributions: { totalCount: number };
-        pullRequestContributions: { totalCount: number };
-        pullRequestReviewContributions: { totalCount: number };
+        pullRequestContributionsByRepository: RepoContributionsByRepository[];
+        pullRequestReviewContributionsByRepository: RepoContributionsByRepository[];
+        contributionCalendar: {
+          weeks: {
+            contributionDays: {
+              date: string;
+              contributionCount: number;
+              color: string;
+            }[];
+          }[];
+        };
       };
     } | null;
   };
@@ -72,6 +115,7 @@ interface GraphQLContributionsResponse {
 
 export interface RepoMetadata {
   nameWithOwner: string;
+  url?: string;
   description?: string;
   topics?: string[];
 }
@@ -85,6 +129,7 @@ interface FetchContributionsResult {
   totalContributions: number;
   contributions: ContributionItem[];
   repoMetadata: RepoMetadata[];
+  calendarWeeks: ContributionCalendarWeek[];
 }
 
 export async function fetchContributions(
@@ -147,47 +192,70 @@ export async function fetchContributions(
 
   if (collection.issueContributions.totalCount > 0) {
     contributions.push({
-      repoNameWithOwner: "_aggregated",
+      repoNameWithOwner: AGGREGATED_SENTINEL,
       type: "issue",
       count: collection.issueContributions.totalCount,
       dateRange,
     });
   }
 
-  if (collection.pullRequestContributions.totalCount > 0) {
+  for (const repo of collection.pullRequestContributionsByRepository) {
     contributions.push({
-      repoNameWithOwner: "_aggregated",
+      repoNameWithOwner: repo.repository.nameWithOwner,
       type: "pr",
-      count: collection.pullRequestContributions.totalCount,
+      count: repo.contributions.totalCount,
       dateRange,
     });
   }
 
-  if (collection.pullRequestReviewContributions.totalCount > 0) {
+  for (const repo of collection.pullRequestReviewContributionsByRepository) {
     contributions.push({
-      repoNameWithOwner: "_aggregated",
+      repoNameWithOwner: repo.repository.nameWithOwner,
       type: "review",
-      count: collection.pullRequestReviewContributions.totalCount,
+      count: repo.contributions.totalCount,
       dateRange,
     });
   }
 
   // C1: Sum all contribution types
+  const totalPRs = collection.pullRequestContributionsByRepository.reduce(
+    (sum, r) => sum + r.contributions.totalCount, 0
+  );
+  const totalReviews = collection.pullRequestReviewContributionsByRepository.reduce(
+    (sum, r) => sum + r.contributions.totalCount, 0
+  );
   const totalContributions =
     collection.totalCommitContributions +
     collection.issueContributions.totalCount +
-    collection.pullRequestContributions.totalCount +
-    collection.pullRequestReviewContributions.totalCount;
+    totalPRs +
+    totalReviews;
 
-  // I3: Extract repo metadata for classification
-  const repoMetadata: RepoMetadata[] =
-    collection.commitContributionsByRepository.map((repo) => ({
-      nameWithOwner: repo.repository.nameWithOwner,
-      description: repo.repository.description ?? undefined,
-      topics: repo.repository.repositoryTopics?.nodes.map(
-        (n) => n.topic.name
-      ),
-    }));
+  // I3: Extract repo metadata for classification from all contribution types
+  const metadataMap = new Map<string, RepoMetadata>();
+
+  function addRepoMetadata(repos: RepoContributionsByRepository[]) {
+    for (const repo of repos) {
+      if (!metadataMap.has(repo.repository.nameWithOwner)) {
+        metadataMap.set(repo.repository.nameWithOwner, {
+          nameWithOwner: repo.repository.nameWithOwner,
+          url: repo.repository.url,
+          description: repo.repository.description ?? undefined,
+          topics: repo.repository.repositoryTopics?.nodes.map(
+            (n) => n.topic.name
+          ),
+        });
+      }
+    }
+  }
+
+  addRepoMetadata(collection.commitContributionsByRepository);
+  addRepoMetadata(collection.pullRequestContributionsByRepository);
+  addRepoMetadata(collection.pullRequestReviewContributionsByRepository);
+
+  const repoMetadata = Array.from(metadataMap.values());
+
+  const calendarWeeks: ContributionCalendarWeek[] =
+    collection.contributionCalendar.weeks;
 
   return {
     login: user.login,
@@ -198,6 +266,7 @@ export async function fetchContributions(
     totalContributions,
     contributions,
     repoMetadata,
+    calendarWeeks,
   };
 }
 
@@ -243,6 +312,7 @@ export async function fetchAllContributions(
       totalContributions: 0,
       contributions: [],
       repoMetadata: [],
+      calendarWeeks: [],
     };
   }
 
@@ -266,6 +336,7 @@ export async function fetchAllContributions(
     ),
     contributions: results.flatMap((r) => r.contributions),
     repoMetadata: deduplicateMetadata(results.flatMap((r) => r.repoMetadata)),
+    calendarWeeks: results.flatMap((r) => r.calendarWeeks),
   };
 
   return merged;

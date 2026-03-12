@@ -2,8 +2,19 @@ export type RelevanceTier = "core" | "ecosystem" | "adjacent";
 
 export interface RepoClassification {
   nameWithOwner: string;
+  url?: string;
   tier: RelevanceTier;
   reason: string;
+}
+
+export interface ContributionCalendarDay {
+  date: string;
+  contributionCount: number;
+  color: string;
+}
+
+export interface ContributionCalendarWeek {
+  contributionDays: ContributionCalendarDay[];
 }
 
 export interface DeveloperOverview {
@@ -15,6 +26,7 @@ export interface DeveloperOverview {
   totalContributions: number;
   bitcoinRepos: RepoClassification[];
   contributions: ContributionItem[];
+  calendarWeeks: ContributionCalendarWeek[];
 }
 
 export interface ContributionItem {
@@ -43,3 +55,6 @@ export interface DateRange {
   from: Date;
   to: Date;
 }
+
+/** Sentinel repo name for contributions not broken down per-repo (e.g. issues). */
+export const AGGREGATED_SENTINEL = "__github_aggregated__";

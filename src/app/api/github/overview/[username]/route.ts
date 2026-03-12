@@ -74,6 +74,7 @@ export async function GET(
       totalContributions: result.totalContributions,
       bitcoinRepos: Array.from(classifications.values()),
       contributions: result.contributions,
+      calendarWeeks: result.calendarWeeks,
     };
 
     await setCache(cacheKey, overview);
