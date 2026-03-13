@@ -49,7 +49,7 @@ describe("ContributionTable", () => {
 
   it("shows empty message when no items", () => {
     render(<ContributionTable items={[]} />);
-    expect(screen.getByText("No contributions found.")).toBeInTheDocument();
+    expect(screen.getByText("No bitcoin contributions found")).toBeInTheDocument();
   });
 
   it("shows status badges", () => {

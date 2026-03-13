@@ -13,6 +13,7 @@ import { ContributionHeatmap } from "@/components/ContributionHeatmap";
 import { ContributionTimeline } from "@/components/ContributionTimeline";
 import { TopProjects } from "@/components/TopProjects";
 import { ContributionDrillDown } from "@/components/ContributionDrillDown";
+import { RateLimitBadge } from "@/components/RateLimitBadge";
 import {
   ProfileCardSkeleton,
   StatsGridSkeleton,
@@ -47,13 +48,16 @@ export function DeveloperOverviewPage({ username }: DeveloperOverviewPageProps) 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <div className="mx-auto max-w-4xl px-6 py-8">
-        <Link
-          href="/dashboard"
-          className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to search
-        </Link>
+        <div className="mb-6 flex items-center justify-between">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to search
+          </Link>
+          <RateLimitBadge />
+        </div>
 
         {error && (
           <ErrorBanner

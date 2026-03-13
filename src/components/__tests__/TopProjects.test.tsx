@@ -82,4 +82,15 @@ describe("TopProjects", () => {
     expect(links[0]).toHaveAttribute("href", "https://github.com/bitcoin/bitcoin");
     expect(links[0]).toHaveAttribute("target", "_blank");
   });
+
+  it("shows tier icons on badges", () => {
+    render(
+      <TopProjects bitcoinRepos={repos} contributions={contributions} showAdjacent />
+    );
+
+    // Check aria-labels for tier badges
+    expect(screen.getByLabelText("Tier: core")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tier: ecosystem")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tier: adjacent")).toBeInTheDocument();
+  });
 });

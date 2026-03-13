@@ -9,8 +9,10 @@ import { ContributionTable } from "@/components/ContributionTable";
 import { ContributionCard } from "@/components/ContributionCard";
 import { ContributionTableSkeleton } from "@/components/Skeletons";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { EmptyState } from "@/components/EmptyState";
+import { MobileFilterSheet } from "@/components/MobileFilterSheet";
 import { Button } from "@/components/ui/button";
-import type { RepoClassification } from "@/lib/types";
+import type { RepoClassification, RelevanceTier } from "@/lib/types";
 
 interface ContributionDrillDownProps {
   username: string;
@@ -52,6 +54,18 @@ export function ContributionDrillDown({
     return items.filter((item) => tierRepos.has(item.repoNameWithOwner));
   }, [items, filters.tier, bitcoinRepos]);
 
+  const filterProps = {
+    bitcoinRepos,
+    activePreset: filters.preset,
+    onPresetChange: setPreset,
+    project: filters.project,
+    status: (filters.status ?? "all") as "open" | "closed" | "merged" | "all",
+    tier: (filters.tier ?? "all") as RelevanceTier | "all",
+    onProjectChange: setProject,
+    onStatusChange: setStatus,
+    onTierChange: setTier,
+  };
+
   const errorVariant = error
     ? error.status === 429
       ? ("rate-limit" as const)
@@ -63,14 +77,14 @@ export function ContributionDrillDown({
       <h2 className="text-lg font-semibold">Contributions</h2>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b" role="tablist">
+      <div className="flex gap-1 overflow-x-auto border-b" role="tablist">
         {tabs.map((tab) => (
           <button
             key={tab}
             role="tab"
             aria-selected={filters.tab === tab}
             onClick={() => setTab(tab)}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
+            className={`whitespace-nowrap flex-shrink-0 px-4 py-2 text-sm font-medium transition-colors ${
               filters.tab === tab
                 ? "border-b-2 border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
                 : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
@@ -81,21 +95,18 @@ export function ContributionDrillDown({
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="space-y-3">
+      {/* Filters — desktop */}
+      <div className="hidden md:block space-y-3">
         <DateFilterBar
-          activePreset={filters.preset}
-          onPresetChange={setPreset}
+          activePreset={filterProps.activePreset}
+          onPresetChange={filterProps.onPresetChange}
         />
-        <ContributionFilters
-          bitcoinRepos={bitcoinRepos}
-          project={filters.project}
-          status={filters.status ?? "all"}
-          tier={filters.tier ?? "all"}
-          onProjectChange={setProject}
-          onStatusChange={setStatus}
-          onTierChange={setTier}
-        />
+        <ContributionFilters {...filterProps} />
+      </div>
+
+      {/* Filters — mobile */}
+      <div className="md:hidden">
+        <MobileFilterSheet {...filterProps} />
       </div>
 
       {/* Error */}
@@ -124,11 +135,7 @@ export function ContributionDrillDown({
       {/* Cards (mobile) */}
       {!isLoading && (
         <div className="md:hidden space-y-3">
-          {filteredItems.length === 0 && !error && (
-            <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              No contributions found.
-            </p>
-          )}
+          {filteredItems.length === 0 && !error && <EmptyState />}
           {filteredItems.map((item) => (
             <ContributionCard key={item.id} item={item} />
           ))}

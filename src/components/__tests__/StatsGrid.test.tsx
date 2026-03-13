@@ -53,6 +53,21 @@ describe("StatsGrid", () => {
     expect(screen.getByText("1.5M")).toBeInTheDocument();
   });
 
+  it("applies responsive grid classes", () => {
+    const { container } = render(<StatsGrid stats={stats} />);
+    const grid = container.firstElementChild as HTMLElement;
+
+    expect(grid.classList.contains("grid-cols-2")).toBe(true);
+    expect(grid.classList.contains("sm:grid-cols-3")).toBe(true);
+    expect(grid.classList.contains("lg:grid-cols-5")).toBe(true);
+  });
+
+  it("has an accessible aria-label on the grid container", () => {
+    render(<StatsGrid stats={stats} />);
+
+    expect(screen.getByLabelText("Contribution statistics")).toBeInTheDocument();
+  });
+
   it("handles zero values", () => {
     const zeroStats: OverviewStats = {
       totalCommits: 0,

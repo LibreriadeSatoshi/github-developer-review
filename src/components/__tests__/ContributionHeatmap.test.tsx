@@ -76,4 +76,76 @@ describe("ContributionHeatmap", () => {
     const columns = container.querySelectorAll(".inline-flex > div");
     expect(columns).toHaveLength(52);
   });
+
+  it("has grid role and aria-label on container", () => {
+    const weeks: ContributionCalendarWeek[] = [
+      {
+        contributionDays: [
+          { date: "2024-01-01", contributionCount: 0, color: "#ebedf0" },
+        ],
+      },
+    ];
+    render(<ContributionHeatmap calendarWeeks={weeks} />);
+    const grid = screen.getByRole("grid");
+    expect(grid).toHaveAttribute("aria-label", "Contribution heatmap");
+  });
+
+  it("has row role on week columns", () => {
+    const weeks: ContributionCalendarWeek[] = [
+      {
+        contributionDays: [
+          { date: "2024-01-01", contributionCount: 0, color: "#ebedf0" },
+        ],
+      },
+    ];
+    render(<ContributionHeatmap calendarWeeks={weeks} />);
+    expect(screen.getAllByRole("row")).toHaveLength(1);
+  });
+
+  it("has gridcell role on day cells", () => {
+    const weeks: ContributionCalendarWeek[] = [
+      {
+        contributionDays: [
+          { date: "2024-01-01", contributionCount: 0, color: "#ebedf0" },
+          { date: "2024-01-02", contributionCount: 3, color: "#40c463" },
+        ],
+      },
+    ];
+    render(<ContributionHeatmap calendarWeeks={weeks} />);
+    expect(screen.getAllByRole("gridcell")).toHaveLength(2);
+  });
+
+  it("supports arrow key navigation", () => {
+    const weeks: ContributionCalendarWeek[] = [
+      {
+        contributionDays: [
+          { date: "2024-01-01", contributionCount: 0, color: "#ebedf0" },
+          { date: "2024-01-02", contributionCount: 3, color: "#40c463" },
+        ],
+      },
+      {
+        contributionDays: [
+          { date: "2024-01-08", contributionCount: 1, color: "#9be9a8" },
+          { date: "2024-01-09", contributionCount: 2, color: "#40c463" },
+        ],
+      },
+    ];
+    render(<ContributionHeatmap calendarWeeks={weeks} />);
+
+    const grid = screen.getByRole("grid");
+    const cells = screen.getAllByRole("gridcell");
+
+    // First cell should have tabIndex 0
+    expect(cells[0]).toHaveAttribute("tabindex", "0");
+    // Others should have tabIndex -1
+    expect(cells[1]).toHaveAttribute("tabindex", "-1");
+
+    // Simulate arrow down
+    const { fireEvent } = require("@testing-library/react");
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+
+    // After pressing down, second cell in first week should be focused
+    const updatedCells = screen.getAllByRole("gridcell");
+    expect(updatedCells[1]).toHaveAttribute("tabindex", "0");
+  });
 });

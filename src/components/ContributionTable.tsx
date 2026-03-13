@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn, stateColors } from "@/lib/utils";
 import { formatDate } from "@/lib/date-utils";
 import { ExpandedPRDetail } from "@/components/ExpandedPRDetail";
+import { EmptyState } from "@/components/EmptyState";
 import type { ContributionDetail } from "@/lib/types";
 
 interface ContributionTableProps {
@@ -16,11 +17,7 @@ export function ContributionTable({ items }: ContributionTableProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   if (items.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-        No contributions found.
-      </p>
-    );
+    return <EmptyState />;
   }
 
   return (

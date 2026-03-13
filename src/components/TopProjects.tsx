@@ -1,7 +1,14 @@
+import { Star, Globe, Minus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AGGREGATED_SENTINEL } from "@/lib/types";
 import type { RepoClassification, ContributionItem, RelevanceTier } from "@/lib/types";
+
+const tierIcons: Record<RelevanceTier, React.ReactNode> = {
+  core: <Star className="h-3 w-3" />,
+  ecosystem: <Globe className="h-3 w-3" />,
+  adjacent: <Minus className="h-3 w-3" />,
+};
 
 interface TopProjectsProps {
   bitcoinRepos: RepoClassification[];
@@ -67,7 +74,12 @@ export function TopProjects({ bitcoinRepos, contributions, showAdjacent }: TopPr
                     {countByRepo.get(repo.nameWithOwner) ?? 0} contributions
                   </p>
                 </div>
-                <Badge className={tierColors[repo.tier]} variant="outline">
+                <Badge
+                  className={tierColors[repo.tier]}
+                  variant="outline"
+                  aria-label={`Tier: ${repo.tier}`}
+                >
+                  {tierIcons[repo.tier]}
                   {repo.tier}
                 </Badge>
               </CardContent>
