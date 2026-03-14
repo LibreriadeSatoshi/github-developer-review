@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { ContributionHeatmap } from "@/components/ContributionHeatmap";
 import type { ContributionCalendarWeek } from "@/lib/types";
 
@@ -141,7 +141,6 @@ describe("ContributionHeatmap", () => {
     expect(cells[1]).toHaveAttribute("tabindex", "-1");
 
     // Simulate arrow down
-    const { fireEvent } = require("@testing-library/react");
     fireEvent.keyDown(grid, { key: "ArrowDown" });
 
     // After pressing down, second cell in first week should be focused

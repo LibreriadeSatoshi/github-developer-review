@@ -5,7 +5,8 @@ const mockKv = new Map<string, unknown>();
 vi.mock("@vercel/kv", () => ({
   kv: {
     get: vi.fn(async (key: string) => mockKv.get(key) ?? null),
-    set: vi.fn(async (key: string, value: unknown, opts?: { ex?: number }) => {
+    // opts (ex/TTL) not used in test; signature matches @vercel/kv
+    set: vi.fn(async (key: string, value: unknown) => {
       mockKv.set(key, value);
     }),
   },

@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
 }));
 import { auth } from "@/lib/auth";
-const mockAuth = vi.mocked(auth);
+const mockAuth = auth as unknown as ReturnType<typeof vi.fn>;
 
 describe("GET /api/github/rate-limit", () => {
   beforeEach(() => {
@@ -14,15 +14,15 @@ describe("GET /api/github/rate-limit", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    mockAuth.mockResolvedValue(null as any);
+    mockAuth.mockResolvedValue(null);
     const { GET } = await import("@/app/api/github/rate-limit/route");
     const res = await GET();
     expect(res.status).toBe(401);
   });
 
   it("returns rate limit data", async () => {
-    mockAuth.mockResolvedValue({ accessToken: "token" } as any);
-    (global.fetch as any).mockResolvedValue({
+    mockAuth.mockResolvedValue({ accessToken: "token" });
+    (global.fetch as Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
         resources: {
@@ -42,8 +42,8 @@ describe("GET /api/github/rate-limit", () => {
   });
 
   it("returns error status when GitHub API fails", async () => {
-    mockAuth.mockResolvedValue({ accessToken: "token" } as any);
-    (global.fetch as any).mockResolvedValue({
+    mockAuth.mockResolvedValue({ accessToken: "token" });
+    (global.fetch as Mock).mockResolvedValue({
       ok: false,
       status: 500,
     });

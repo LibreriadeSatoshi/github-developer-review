@@ -30,7 +30,7 @@ describe("proxy", () => {
   describe("unauthenticated", () => {
     it("redirects /dashboard to /", async () => {
       const { proxy } = await import("@/proxy");
-      const response = await proxy(createRequest("/dashboard") as any);
+      const response = await proxy(createRequest("/dashboard"));
 
       expect(response.status).toBe(307);
       expect(new URL(response.headers.get("location")!).pathname).toBe("/");
@@ -39,7 +39,7 @@ describe("proxy", () => {
     it("redirects /developer/satoshi to /", async () => {
       const { proxy } = await import("@/proxy");
       const response = await proxy(
-        createRequest("/developer/satoshi") as any
+        createRequest("/developer/satoshi")
       );
 
       expect(response.status).toBe(307);
@@ -49,7 +49,7 @@ describe("proxy", () => {
     it("redirects /api/github/* to /", async () => {
       const { proxy } = await import("@/proxy");
       const response = await proxy(
-        createRequest("/api/github/overview/test") as any
+        createRequest("/api/github/overview/test")
       );
 
       expect(response.status).toBe(307);
@@ -58,7 +58,7 @@ describe("proxy", () => {
 
     it("allows / (login page)", async () => {
       const { proxy } = await import("@/proxy");
-      const response = await proxy(createRequest("/") as any);
+      const response = await proxy(createRequest("/"));
 
       expect(response.status).toBe(200);
     });
@@ -71,7 +71,7 @@ describe("proxy", () => {
 
     it("redirects when session exists but accessToken is missing", async () => {
       const { proxy } = await import("@/proxy");
-      const response = await proxy(createRequest("/dashboard") as any);
+      const response = await proxy(createRequest("/dashboard"));
 
       expect(response.status).toBe(307);
       expect(new URL(response.headers.get("location")!).pathname).toBe("/");
@@ -87,12 +87,12 @@ describe("proxy", () => {
       const { proxy } = await import("@/proxy");
 
       const dashboardRes = await proxy(
-        createRequest("/dashboard") as any
+        createRequest("/dashboard")
       );
       expect(dashboardRes.status).toBe(200);
 
       const devRes = await proxy(
-        createRequest("/developer/satoshi") as any
+        createRequest("/developer/satoshi")
       );
       expect(devRes.status).toBe(200);
     });

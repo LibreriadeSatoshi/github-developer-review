@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useRecentSearches } from "@/hooks/use-recent-searches";
 
 // Mock localStorage
@@ -20,14 +20,16 @@ describe("useRecentSearches", () => {
     expect(result.current.searches).toEqual([]);
   });
 
-  it("hydrates from localStorage on mount", () => {
+  it("hydrates from localStorage on mount", async () => {
     const existing = [{ username: "satoshi", timestamp: 1000 }];
     store.set("recent-searches", JSON.stringify(existing));
 
     const { result } = renderHook(() => useRecentSearches());
 
-    // After useEffect hydration
-    expect(result.current.searches).toEqual(existing);
+    // useEffect + queueMicrotask defers hydration
+    await waitFor(() => {
+      expect(result.current.searches).toEqual(existing);
+    });
   });
 
   it("adds a search and persists to localStorage", () => {

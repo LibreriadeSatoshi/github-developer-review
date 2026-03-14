@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-let capturedConfig: any = null;
+type NextAuthConfig = {
+  callbacks?: {
+    jwt?: (args: { token: Record<string, unknown>; account?: { access_token?: string } | null }) => Record<string, unknown>;
+    session?: (args: { session: Record<string, unknown>; token: Record<string, unknown> }) => Record<string, unknown>;
+  };
+};
+let capturedConfig: NextAuthConfig | null = null;
 
 vi.mock("next-auth", () => ({
-  default: vi.fn((config: any) => {
+  default: vi.fn((config: NextAuthConfig) => {
     capturedConfig = config;
     return {
       handlers: { GET: vi.fn(), POST: vi.fn() },
@@ -25,7 +31,7 @@ describe("auth", () => {
 
     // Re-mock after resetModules
     vi.doMock("next-auth", () => ({
-      default: vi.fn((config: any) => {
+      default: vi.fn((config: NextAuthConfig) => {
         capturedConfig = config;
         return {
           handlers: { GET: vi.fn(), POST: vi.fn() },
@@ -56,7 +62,7 @@ describe("auth", () => {
     const token = { sub: "123" };
     const account = { access_token: "gh_token_abc" };
 
-    const result = capturedConfig.callbacks.jwt({ token, account });
+    const result = capturedConfig!.callbacks!.jwt!({ token, account }) as { accessToken?: string };
     expect(result.accessToken).toBe("gh_token_abc");
   });
 
@@ -64,17 +70,17 @@ describe("auth", () => {
     await import("@/lib/auth");
 
     const token = { sub: "123", accessToken: "existing_token" };
-    const result = capturedConfig.callbacks.jwt({ token, account: null });
+    const result = capturedConfig!.callbacks!.jwt!({ token, account: null }) as { accessToken?: string };
     expect(result.accessToken).toBe("existing_token");
   });
 
   it("session callback sets session.accessToken from token", async () => {
     await import("@/lib/auth");
 
-    const session = { user: { name: "Test" } } as any;
+    const session = { user: { name: "Test" } };
     const token = { accessToken: "gh_token_abc" };
 
-    const result = capturedConfig.callbacks.session({ session, token });
+    const result = capturedConfig!.callbacks!.session!({ session, token }) as { accessToken?: string };
     expect(result.accessToken).toBe("gh_token_abc");
   });
 });

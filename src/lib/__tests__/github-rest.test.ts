@@ -6,7 +6,7 @@ import {
   mapSearchItem,
   repoNameFromUrl,
 } from "@/lib/github-rest";
-import type { SearchFilters, GitHubSearchItem } from "@/lib/github-rest";
+import type { GitHubSearchItem } from "@/lib/github-rest";
 
 // Mock githubFetch
 vi.mock("@/lib/github-search", () => ({

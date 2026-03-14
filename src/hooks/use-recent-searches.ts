@@ -19,7 +19,8 @@ export function useRecentSearches() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setSearches(JSON.parse(stored));
+        const parsed = JSON.parse(stored) as RecentSearch[];
+        queueMicrotask(() => setSearches(parsed));
       }
     } catch {
       // Ignore parse errors

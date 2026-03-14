@@ -35,7 +35,7 @@ export function DeveloperOverviewPage({ username }: DeveloperOverviewPageProps) 
     if (data) {
       addSearch(data.login, data.avatarUrl);
     }
-  }, [data?.login, data?.avatarUrl, addSearch]);
+  }, [data, data?.login, data?.avatarUrl, addSearch]);
 
   const errorVariant = error
     ? error.status === 429
