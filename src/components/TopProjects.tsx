@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Star, Globe, Minus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AGGREGATED_SENTINEL } from "@/lib/types";
 import type { RepoClassification, ContributionItem, RelevanceTier } from "@/lib/types";
 
@@ -22,7 +24,15 @@ const tierColors: Record<RelevanceTier, string> = {
   adjacent: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
+const PAGE_SIZE = 5;
+
 export function TopProjects({ bitcoinRepos, contributions, showAdjacent }: TopProjectsProps) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [showAdjacent]);
+
   const repos = showAdjacent
     ? bitcoinRepos
     : bitcoinRepos.filter((r) => r.tier !== "adjacent");
@@ -52,9 +62,12 @@ export function TopProjects({ bitcoinRepos, contributions, showAdjacent }: TopPr
     return cb - ca;
   });
 
+  const visible = sorted.slice(0, visibleCount);
+  const hasMore = visibleCount < sorted.length;
+
   return (
     <div className="space-y-3">
-      {sorted.map((repo) => {
+      {visible.map((repo) => {
         const repoUrl = repo.url ?? `https://github.com/${repo.nameWithOwner}`;
         return (
           <a
@@ -87,6 +100,17 @@ export function TopProjects({ bitcoinRepos, contributions, showAdjacent }: TopPr
           </a>
         );
       })}
+
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+          >
+            Load more
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
