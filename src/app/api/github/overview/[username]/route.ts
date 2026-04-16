@@ -32,8 +32,36 @@ export async function GET(
   const cacheKey = `overview:${username.toLowerCase()}`;
 
   const cached = await getCached<DeveloperOverview>(cacheKey);
-  if (cached && cached.linesAdded !== undefined) {
-    return NextResponse.json(cached);
+  if (cached) {
+    if (cached.linesResolved === true) {
+      return NextResponse.json(cached);
+    }
+    // Stats were not resolved on the previous fetch (GitHub returned 202 for all repos).
+    // Re-attempt the lines-of-code fetch without repeating the expensive GraphQL call.
+    const repoMap = new Map<string, number>();
+    for (const c of cached.contributions) {
+      repoMap.set(
+        c.repoNameWithOwner,
+        (repoMap.get(c.repoNameWithOwner) ?? 0) + c.count
+      );
+    }
+    const repoList = Array.from(repoMap.entries()).map(([repoNameWithOwner, count]) => ({
+      repoNameWithOwner,
+      count,
+    }));
+    const { linesAdded, linesDeleted, resolved } = await fetchLinesOfCode(
+      repoList,
+      cached.login,
+      session.accessToken
+    );
+    const enriched: DeveloperOverview = {
+      ...cached,
+      linesAdded,
+      linesDeleted,
+      linesResolved: resolved,
+    };
+    await setCache(cacheKey, enriched);
+    return NextResponse.json(enriched);
   }
 
   try {
@@ -77,7 +105,7 @@ export async function GET(
       count,
     }));
 
-    const { linesAdded, linesDeleted } = await fetchLinesOfCode(
+    const { linesAdded, linesDeleted, resolved: linesResolved } = await fetchLinesOfCode(
       repoList,
       result.login,
       session.accessToken
@@ -95,6 +123,7 @@ export async function GET(
       calendarWeeks: result.calendarWeeks,
       linesAdded,
       linesDeleted,
+      linesResolved,
     };
 
     await setCache(cacheKey, overview);

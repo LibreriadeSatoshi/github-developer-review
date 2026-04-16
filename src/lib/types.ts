@@ -31,6 +31,7 @@ export interface DeveloperOverview {
   calendarWeeks: ContributionCalendarWeek[];
   linesAdded: number;
   linesDeleted: number;
+  linesResolved?: boolean;
 }
 
 export interface ContributionItem {

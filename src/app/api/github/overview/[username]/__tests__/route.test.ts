@@ -63,6 +63,14 @@ describe("GET /api/github/overview/[username]", () => {
           ])
       ),
     }));
+
+    vi.doMock("@/lib/github-stats", () => ({
+      fetchLinesOfCode: vi.fn(async () => ({
+        linesAdded: 0,
+        linesDeleted: 0,
+        resolved: true,
+      })),
+    }));
   });
 
   async function callRoute(username: string) {
@@ -86,15 +94,83 @@ describe("GET /api/github/overview/[username]", () => {
     expect(response.status).toBe(401);
   });
 
-  it("returns cached data when available", async () => {
+  it("returns cached data when linesResolved is true", async () => {
     mockSession = { user: { name: "Test" }, accessToken: "token" };
-    mockCacheData = { login: "cached-user", totalContributions: 42, linesAdded: 0, linesDeleted: 0 };
+    mockCacheData = {
+      login: "cached-user",
+      totalContributions: 42,
+      linesAdded: 1000,
+      linesDeleted: 50,
+      linesResolved: true,
+      contributions: [],
+    };
 
     const response = await callRoute("testuser");
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.login).toBe("cached-user");
+  });
+
+  it("re-fetches lines stats when cached overview has linesResolved: false", async () => {
+    mockSession = { user: { name: "Test" }, accessToken: "token" };
+    mockCacheData = {
+      login: "cached-user",
+      totalContributions: 42,
+      linesAdded: 0,
+      linesDeleted: 0,
+      linesResolved: false,
+      contributions: [
+        {
+          repoNameWithOwner: "bitcoin/bitcoin",
+          type: "commit",
+          count: 10,
+          dateRange: { from: new Date("2024-01-01"), to: new Date("2025-01-01") },
+        },
+      ],
+    };
+
+    vi.doMock("@/lib/github-stats", () => ({
+      fetchLinesOfCode: vi.fn(async () => ({
+        linesAdded: 9999,
+        linesDeleted: 100,
+        resolved: true,
+      })),
+    }));
+
+    const response = await callRoute("testuser");
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.linesAdded).toBe(9999);
+    expect(data.linesResolved).toBe(true);
+
+    const { setCache } = await import("@/lib/cache");
+    expect(setCache).toHaveBeenCalledWith(
+      "overview:testuser",
+      expect.objectContaining({ linesAdded: 9999, linesResolved: true })
+    );
+  });
+
+  it("does not re-fetch lines stats when linesResolved is true", async () => {
+    mockSession = { user: { name: "Test" }, accessToken: "token" };
+    mockCacheData = {
+      login: "cached-user",
+      totalContributions: 42,
+      linesAdded: 500,
+      linesDeleted: 20,
+      linesResolved: true,
+      contributions: [],
+    };
+
+    const fetchLinesOfCodeMock = vi.fn();
+    vi.doMock("@/lib/github-stats", () => ({
+      fetchLinesOfCode: fetchLinesOfCodeMock,
+    }));
+
+    await callRoute("testuser");
+
+    expect(fetchLinesOfCodeMock).not.toHaveBeenCalled();
   });
 
   it("fetches, classifies, caches, and returns DeveloperOverview on cache miss", async () => {

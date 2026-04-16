@@ -15,6 +15,7 @@ interface ContributorStat {
 export interface LinesOfCodeResult {
   linesAdded: number;
   linesDeleted: number;
+  resolved: boolean;
 }
 
 interface RepoContribution {
@@ -74,6 +75,7 @@ export async function fetchLinesOfCode(
 
   let linesAdded = 0;
   let linesDeleted = 0;
+  let resolved = false;
 
   for (const { repoNameWithOwner } of capped) {
     const stats = await fetchRepoStats(repoNameWithOwner, token);
@@ -84,11 +86,12 @@ export async function fetchLinesOfCode(
     );
     if (!contributor) continue;
 
+    resolved = true;
     for (const week of contributor.weeks) {
       linesAdded += week.a;
       linesDeleted += week.d;
     }
   }
 
-  return { linesAdded, linesDeleted };
+  return { linesAdded, linesDeleted, resolved };
 }

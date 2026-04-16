@@ -53,6 +53,7 @@ describe("fetchLinesOfCode", () => {
 
     expect(result.linesAdded).toBe(350);
     expect(result.linesDeleted).toBe(80);
+    expect(result.resolved).toBe(true);
   });
 
   it("defaults to 0 for a repo after two 202 responses", async () => {
@@ -68,6 +69,7 @@ describe("fetchLinesOfCode", () => {
 
     expect(result.linesAdded).toBe(0);
     expect(result.linesDeleted).toBe(0);
+    expect(result.resolved).toBe(false);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
@@ -87,6 +89,30 @@ describe("fetchLinesOfCode", () => {
 
     expect(result.linesAdded).toBe(0);
     expect(result.linesDeleted).toBe(0);
+    expect(result.resolved).toBe(false);
+  });
+
+  it("returns resolved: true when at least one repo succeeds even if others fail", async () => {
+    mockFetch
+      .mockResolvedValueOnce({ status: 202, ok: false, json: async () => [] })
+      .mockResolvedValueOnce({ status: 202, ok: false, json: async () => [] })
+      .mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => makeStats("alice", 75, 5),
+      });
+
+    const repos = [
+      { repoNameWithOwner: "org/slow", count: 3 },
+      { repoNameWithOwner: "org/ready", count: 1 },
+    ];
+
+    const promise = fetchLinesOfCode(repos, "alice", "tok");
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result.linesAdded).toBe(75);
+    expect(result.resolved).toBe(true);
   });
 
   it("caps at 20 repos when more are provided", async () => {
