@@ -70,7 +70,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with GitHub, then u
 1. Push the repo to GitHub and connect it to [Netlify](https://app.netlify.com).
 2. Netlify auto-detects `netlify.toml`; no extra build config needed.
 3. In **Site settings → Environment variables**, add:
-   - `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`
+   - `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `AUTH_URL`, `DEBUG_CONSOLE`
    - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (optional, for caching)
 4. Trigger a deploy.
 
