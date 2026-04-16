@@ -16,6 +16,8 @@ function makeOverview(
     bitcoinRepos,
     contributions,
     calendarWeeks: [],
+    linesAdded: 0,
+    linesDeleted: 0,
   };
 }
 

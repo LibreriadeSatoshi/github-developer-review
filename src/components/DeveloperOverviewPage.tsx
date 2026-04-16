@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useOverview } from "@/hooks/use-overview";
@@ -21,6 +21,33 @@ import {
   TimelineSkeleton,
 } from "@/components/Skeletons";
 
+const LOADING_MESSAGES = [
+  "Fetching GitHub profile…",
+  "Analysing contributions…",
+  "Counting lines of code…",
+  "Almost there…",
+];
+
+function useLoadingMessage(active: boolean) {
+  const [index, setIndex] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!active) {
+      setIndex(0);
+      return;
+    }
+    timerRef.current = setTimeout(() => {
+      setIndex((i) => Math.min(i + 1, LOADING_MESSAGES.length - 1));
+    }, 3000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [active, index]);
+
+  return LOADING_MESSAGES[index];
+}
+
 interface DeveloperOverviewPageProps {
   username: string;
 }
@@ -29,6 +56,7 @@ export function DeveloperOverviewPage({ username }: DeveloperOverviewPageProps) 
   const { data, error, isLoading, mutate } = useOverview(username);
   const { addSearch } = useRecentSearches();
   const [showAdjacent, setShowAdjacent] = useState(false);
+  const loadingMessage = useLoadingMessage(isLoading);
 
   // Record search once data loads
   useEffect(() => {
@@ -74,6 +102,13 @@ export function DeveloperOverviewPage({ username }: DeveloperOverviewPageProps) 
 
         {isLoading && (
           <div className="space-y-8">
+            <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-zinc-400" />
+              </span>
+              {loadingMessage}
+            </div>
             <ProfileCardSkeleton />
             <StatsGridSkeleton />
             <HeatmapSkeleton />

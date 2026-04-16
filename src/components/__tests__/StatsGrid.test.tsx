@@ -12,9 +12,10 @@ describe("StatsGrid", () => {
     totalReviews: 78,
     totalIssues: 12,
     projectCount: 9,
+    linesAdded: 42300,
   };
 
-  it("renders all 5 stat cards", () => {
+  it("renders all 6 stat cards", () => {
     render(<StatsGrid stats={stats} />);
 
     expect(screen.getByText("Commits")).toBeInTheDocument();
@@ -22,6 +23,7 @@ describe("StatsGrid", () => {
     expect(screen.getByText("Reviews")).toBeInTheDocument();
     expect(screen.getByText("Issues")).toBeInTheDocument();
     expect(screen.getByText("Projects")).toBeInTheDocument();
+    expect(screen.getByText("Lines written")).toBeInTheDocument();
   });
 
   it("formats large numbers with k suffix", () => {
@@ -46,6 +48,7 @@ describe("StatsGrid", () => {
       totalReviews: 0,
       totalIssues: 0,
       projectCount: 0,
+      linesAdded: 0,
     };
 
     render(<StatsGrid stats={bigStats} />);
@@ -59,7 +62,7 @@ describe("StatsGrid", () => {
 
     expect(grid.classList.contains("grid-cols-2")).toBe(true);
     expect(grid.classList.contains("sm:grid-cols-3")).toBe(true);
-    expect(grid.classList.contains("lg:grid-cols-5")).toBe(true);
+    expect(grid.classList.contains("lg:grid-cols-6")).toBe(true);
   });
 
   it("has an accessible aria-label on the grid container", () => {
@@ -75,11 +78,12 @@ describe("StatsGrid", () => {
       totalReviews: 0,
       totalIssues: 0,
       projectCount: 0,
+      linesAdded: 0,
     };
 
     render(<StatsGrid stats={zeroStats} />);
 
     const zeros = screen.getAllByText("0");
-    expect(zeros).toHaveLength(5);
+    expect(zeros).toHaveLength(6);
   });
 });

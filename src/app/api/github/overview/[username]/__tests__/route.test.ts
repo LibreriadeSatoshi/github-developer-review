@@ -88,7 +88,7 @@ describe("GET /api/github/overview/[username]", () => {
 
   it("returns cached data when available", async () => {
     mockSession = { user: { name: "Test" }, accessToken: "token" };
-    mockCacheData = { login: "cached-user", totalContributions: 42 };
+    mockCacheData = { login: "cached-user", totalContributions: 42, linesAdded: 0, linesDeleted: 0 };
 
     const response = await callRoute("testuser");
     const data = await response.json();
