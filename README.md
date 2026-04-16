@@ -16,7 +16,7 @@ Evaluate Bitcoin open-source contributors for grant funding. Sign in with GitHub
 - **Next.js 16** (App Router), **React 19**
 - **NextAuth v5** (GitHub provider)
 - **Tailwind CSS v4**, **shadcn/ui**
-- **SWR** for data fetching; **Vercel KV** for server-side caching (optional)
+- **SWR** for data fetching; **Upstash Redis** for server-side caching (optional)
 - **Vitest** + **Testing Library** for tests
 
 ## Prerequisites
@@ -26,7 +26,7 @@ Evaluate Bitcoin open-source contributors for grant funding. Sign in with GitHub
 
 For caching (recommended in production):
 
-- [Vercel KV](https://vercel.com/docs/storage/vercel-kv) or a Redis-compatible store with the same env vars.
+- An [Upstash Redis](https://upstash.com) database (free tier available). Create one and copy the REST URL and token.
 
 ## Environment variables
 
@@ -37,10 +37,10 @@ Create a `.env.local` in the project root:
 | `AUTH_SECRET` | Yes | Secret for NextAuth session encryption (e.g. `openssl rand -base64 32`) |
 | `AUTH_GITHUB_ID` | Yes | GitHub OAuth App Client ID |
 | `AUTH_GITHUB_SECRET` | Yes | GitHub OAuth App Client Secret |
-| `KV_REST_API_URL` | No | Vercel KV REST API URL (for server-side cache) |
-| `KV_REST_API_TOKEN` | No | Vercel KV REST API token |
+| `UPSTASH_REDIS_REST_URL` | No | Upstash Redis REST URL (for server-side cache) |
+| `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis REST token |
 
-Without KV vars, the app still runs; cache reads/writes will fail and the app will fall back to uncached GitHub API calls.
+Without the Upstash vars, the app still runs; cache reads/writes will fail and the app will fall back to uncached GitHub API calls.
 
 ## Getting started
 
@@ -64,6 +64,15 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with GitHub, then u
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run Vitest in watch mode |
 | `npm run test:run` | Run Vitest once (e.g. in CI) |
+
+## Deploying to Netlify
+
+1. Push the repo to GitHub and connect it to [Netlify](https://app.netlify.com).
+2. Netlify auto-detects `netlify.toml`; no extra build config needed.
+3. In **Site settings → Environment variables**, add:
+   - `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`
+   - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (optional, for caching)
+4. Trigger a deploy.
 
 ## CI
 
