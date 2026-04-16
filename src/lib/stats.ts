@@ -56,7 +56,7 @@ export function computeStats(
     totalReviews,
     totalIssues,
     projectCount: repos.size,
-    linesAdded: overview.linesAdded,
+    linesAdded: overview.linesAdded ?? 0,
   };
 }
 

@@ -32,7 +32,7 @@ export async function GET(
   const cacheKey = `overview:${username.toLowerCase()}`;
 
   const cached = await getCached<DeveloperOverview>(cacheKey);
-  if (cached) {
+  if (cached && cached.linesAdded !== undefined) {
     return NextResponse.json(cached);
   }
 
