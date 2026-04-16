@@ -39,6 +39,8 @@ Create a `.env.local` in the project root:
 | `AUTH_GITHUB_SECRET` | Yes | GitHub OAuth App Client Secret |
 | `UPSTASH_REDIS_REST_URL` | No | Upstash Redis REST URL (for server-side cache) |
 | `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis REST token |
+| `AUTH_URL` | Yes | Web URL for Github Login |
+| `DEBUG_CONSOLE` | No | View log in console, set to `TRUE` |
 
 Without the Upstash vars, the app still runs; cache reads/writes will fail and the app will fall back to uncached GitHub API calls.
 
