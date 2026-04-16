@@ -13,6 +13,8 @@ const presets: { key: PresetKey; label: string }[] = [
   { key: "3mo", label: "3 months" },
   { key: "6mo", label: "6 months" },
   { key: "1yr", label: "1 year" },
+  { key: "this_yr", label: "This year" },
+  { key: "last_yr", label: "Last year" },
   { key: "all", label: "All time" },
 ];
 

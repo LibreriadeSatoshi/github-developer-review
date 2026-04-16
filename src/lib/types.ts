@@ -29,6 +29,8 @@ export interface DeveloperOverview {
   bitcoinRepos: RepoClassification[];
   contributions: ContributionItem[];
   calendarWeeks: ContributionCalendarWeek[];
+  linesAdded: number;
+  linesDeleted: number;
 }
 
 export interface ContributionItem {

@@ -21,7 +21,7 @@ export function getYearRanges(createdAt: Date, now?: Date): DateRange[] {
   return ranges;
 }
 
-export type PresetKey = "30d" | "3mo" | "6mo" | "1yr" | "all";
+export type PresetKey = "30d" | "3mo" | "6mo" | "1yr" | "this_yr" | "last_yr" | "all";
 
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -54,6 +54,17 @@ export function getPresetRange(preset: PresetKey, now?: Date): DateRange {
       const from = new Date(to);
       from.setUTCFullYear(from.getUTCFullYear() - 1);
       return { from, to: new Date(to) };
+    }
+    case "this_yr": {
+      const from = new Date(Date.UTC(to.getUTCFullYear(), 0, 1));
+      return { from, to: new Date(to) };
+    }
+    case "last_yr": {
+      const year = to.getUTCFullYear() - 1;
+      return {
+        from: new Date(Date.UTC(year, 0, 1)),
+        to: new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)),
+      };
     }
     case "all": {
       return {

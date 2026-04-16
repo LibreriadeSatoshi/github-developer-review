@@ -7,6 +7,7 @@ export interface OverviewStats {
   totalReviews: number;
   totalIssues: number;
   projectCount: number;
+  linesAdded: number;
 }
 
 export function computeStats(
@@ -55,6 +56,7 @@ export function computeStats(
     totalReviews,
     totalIssues,
     projectCount: repos.size,
+    linesAdded: overview.linesAdded,
   };
 }
 

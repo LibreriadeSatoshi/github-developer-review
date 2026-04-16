@@ -11,6 +11,7 @@ const statLabels: { key: keyof OverviewStats; label: string }[] = [
   { key: "totalReviews", label: "Reviews" },
   { key: "totalIssues", label: "Issues" },
   { key: "projectCount", label: "Projects" },
+  { key: "linesAdded", label: "Lines written" },
 ];
 
 function formatNumber(n: number): string {
@@ -25,7 +26,7 @@ function formatNumber(n: number): string {
 
 export function StatsGrid({ stats }: StatsGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Contribution statistics">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Contribution statistics">
       {statLabels.map(({ key, label }) => (
         <Card key={key}>
           <CardContent className="p-4 text-center">
