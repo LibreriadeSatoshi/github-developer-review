@@ -1,6 +1,8 @@
 import { signIn } from "@/lib/auth";
 
 export default function LoginPage() {
+  const commit = (process.env.COMMIT_REF ?? "dev").slice(0, 7);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black">
       <main className="flex flex-col items-center gap-8 px-6">
@@ -33,6 +35,7 @@ export default function LoginPage() {
             Sign in with GitHub
           </button>
         </form>
+        <p className="text-xs text-zinc-400 dark:text-zinc-600 font-mono">{commit}</p>
       </main>
     </div>
   );
