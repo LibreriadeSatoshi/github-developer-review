@@ -16,7 +16,7 @@ declare module "@auth/core/jwt" {
 
 const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
-  providers: [GitHub],
+  providers: [GitHub({ checks: ["state"] })],
   callbacks: {
     jwt({ token, account }) {
       if (account) {
