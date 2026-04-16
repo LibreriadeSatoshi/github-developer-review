@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import { Poppins } from "next/font/google";
 import { Providers } from "./providers";
+import { DebugAuth } from "@/components/DebugAuth";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -25,11 +26,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const debugEnabled = process.env.DEBUG_CONSOLE === "TRUE";
+
   return (
     <html lang="en">
       <body
         className={`${poppins.variable} ${geistMono.variable} font-sans antialiased container bg-bg-black text-foreground`}
       >
+        <DebugAuth enabled={debugEnabled} />
         <Providers>{children}</Providers>
       </body>
     </html>
