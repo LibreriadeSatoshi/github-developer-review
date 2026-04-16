@@ -26,7 +26,29 @@ function makeRepoEntry(nameWithOwner: string, count: number, description?: strin
         nodes: (topics ?? []).map((name) => ({ topic: { name } })),
       },
     },
-    contributions: { totalCount: count },
+    contributions: { totalCount: count, nodes: [] },
+  };
+}
+
+function makePRRepoEntry(
+  nameWithOwner: string,
+  prs: { additions: number; deletions: number; merged: boolean }[],
+  description?: string,
+  topics?: string[]
+) {
+  return {
+    repository: {
+      nameWithOwner,
+      url: `https://github.com/${nameWithOwner}`,
+      description: description ?? null,
+      repositoryTopics: {
+        nodes: (topics ?? []).map((name) => ({ topic: { name } })),
+      },
+    },
+    contributions: {
+      totalCount: prs.length,
+      nodes: prs.map((pr) => ({ pullRequest: pr })),
+    },
   };
 }
 
@@ -400,6 +422,61 @@ describe("github-graphql", () => {
     const lndMeta = result.repoMetadata.find((m) => m.nameWithOwner === "lightning/lnd");
     expect(lndMeta).toBeDefined();
     expect(lndMeta?.url).toBe("https://github.com/lightning/lnd");
+  });
+
+  it("sums additions/deletions from merged PRs into linesAdded/linesDeleted", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () =>
+        makeGraphQLResponse("satoshi", {
+          prs: [
+            makePRRepoEntry("bitcoin/bitcoin", [
+              { additions: 300, deletions: 50, merged: true },
+              { additions: 100, deletions: 10, merged: true },
+              { additions: 999, deletions: 999, merged: false }, // not merged — excluded
+            ]),
+            makePRRepoEntry("lightning/lnd", [
+              { additions: 200, deletions: 30, merged: true },
+            ]),
+          ],
+        }),
+    } as Response);
+
+    const { fetchContributions } = await import("@/lib/github-graphql");
+
+    const result = await fetchContributions("satoshi", "test-token", {
+      from: new Date("2024-01-01"),
+      to: new Date("2025-01-01"),
+    });
+
+    expect(result.linesAdded).toBe(600);   // 300 + 100 + 200
+    expect(result.linesDeleted).toBe(90);  // 50 + 10 + 30
+  });
+
+  it("returns linesAdded: 0 when there are no merged PRs", async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () =>
+        makeGraphQLResponse("satoshi", {
+          prs: [
+            makePRRepoEntry("bitcoin/bitcoin", [
+              { additions: 500, deletions: 100, merged: false },
+            ]),
+          ],
+        }),
+    } as Response);
+
+    const { fetchContributions } = await import("@/lib/github-graphql");
+
+    const result = await fetchContributions("satoshi", "test-token", {
+      from: new Date("2024-01-01"),
+      to: new Date("2025-01-01"),
+    });
+
+    expect(result.linesAdded).toBe(0);
+    expect(result.linesDeleted).toBe(0);
   });
 
   it("throws specific error when user not found", async () => {

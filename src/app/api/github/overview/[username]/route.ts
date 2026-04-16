@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { getCached, setCache } from "@/lib/cache";
 import { fetchAllContributions } from "@/lib/github-graphql";
 import { classifyRepos } from "@/lib/bitcoin-repos";
-import { fetchLinesOfCode } from "@/lib/github-stats";
 import { GITHUB_USERNAME_RE } from "@/lib/utils";
 import { RateLimitError } from "@/lib/types";
 import type { DeveloperOverview } from "@/lib/types";
@@ -29,39 +28,12 @@ export async function GET(
   }
 
   // I4: Normalize cache key to lowercase
-  const cacheKey = `overview:${username.toLowerCase()}`;
+  // Cache key v2: bumped to invalidate old entries that used /stats/contributors (returned 0)
+  const cacheKey = `overview:2:${username.toLowerCase()}`;
 
   const cached = await getCached<DeveloperOverview>(cacheKey);
   if (cached) {
-    if (cached.linesResolved === true) {
-      return NextResponse.json(cached);
-    }
-    // Stats were not resolved on the previous fetch (GitHub returned 202 for all repos).
-    // Re-attempt the lines-of-code fetch without repeating the expensive GraphQL call.
-    const repoMap = new Map<string, number>();
-    for (const c of cached.contributions) {
-      repoMap.set(
-        c.repoNameWithOwner,
-        (repoMap.get(c.repoNameWithOwner) ?? 0) + c.count
-      );
-    }
-    const repoList = Array.from(repoMap.entries()).map(([repoNameWithOwner, count]) => ({
-      repoNameWithOwner,
-      count,
-    }));
-    const { linesAdded, linesDeleted, resolved } = await fetchLinesOfCode(
-      repoList,
-      cached.login,
-      session.accessToken
-    );
-    const enriched: DeveloperOverview = {
-      ...cached,
-      linesAdded,
-      linesDeleted,
-      linesResolved: resolved,
-    };
-    await setCache(cacheKey, enriched);
-    return NextResponse.json(enriched);
+    return NextResponse.json(cached);
   }
 
   try {
@@ -92,25 +64,6 @@ export async function GET(
     // I3: Pass repo metadata (description, topics) to classifyRepos
     const classifications = classifyRepos(result.repoMetadata);
 
-    // Deduplicate repos by nameWithOwner, summing contribution counts
-    const repoMap = new Map<string, number>();
-    for (const c of result.contributions) {
-      repoMap.set(
-        c.repoNameWithOwner,
-        (repoMap.get(c.repoNameWithOwner) ?? 0) + c.count
-      );
-    }
-    const repoList = Array.from(repoMap.entries()).map(([repoNameWithOwner, count]) => ({
-      repoNameWithOwner,
-      count,
-    }));
-
-    const { linesAdded, linesDeleted, resolved: linesResolved } = await fetchLinesOfCode(
-      repoList,
-      result.login,
-      session.accessToken
-    );
-
     const overview: DeveloperOverview = {
       login: result.login,
       name: result.name,
@@ -121,9 +74,8 @@ export async function GET(
       bitcoinRepos: Array.from(classifications.values()),
       contributions: result.contributions,
       calendarWeeks: result.calendarWeeks,
-      linesAdded,
-      linesDeleted,
-      linesResolved,
+      linesAdded: result.linesAdded,
+      linesDeleted: result.linesDeleted,
     };
 
     await setCache(cacheKey, overview);

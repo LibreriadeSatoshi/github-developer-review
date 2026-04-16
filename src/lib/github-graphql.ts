@@ -40,8 +40,15 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
             nodes { topic { name } }
           }
         }
-        contributions {
+        contributions(first: 50) {
           totalCount
+          nodes {
+            pullRequest {
+              additions
+              deletions
+              merged
+            }
+          }
         }
       }
       pullRequestReviewContributionsByRepository(maxRepositories: 100) {
@@ -74,6 +81,14 @@ interface RepositoryTopic {
   topic: { name: string };
 }
 
+interface PRNode {
+  pullRequest: {
+    additions: number;
+    deletions: number;
+    merged: boolean;
+  };
+}
+
 interface RepoContributionsByRepository {
   repository: {
     nameWithOwner: string;
@@ -81,7 +96,10 @@ interface RepoContributionsByRepository {
     description: string | null;
     repositoryTopics: { nodes: RepositoryTopic[] };
   };
-  contributions: { totalCount: number };
+  contributions: {
+    totalCount: number;
+    nodes?: PRNode[];
+  };
 }
 
 interface GraphQLContributionsResponse {
@@ -130,6 +148,8 @@ interface FetchContributionsResult {
   contributions: ContributionItem[];
   repoMetadata: RepoMetadata[];
   calendarWeeks: ContributionCalendarWeek[];
+  linesAdded: number;
+  linesDeleted: number;
 }
 
 export async function fetchContributions(
@@ -217,6 +237,18 @@ export async function fetchContributions(
     });
   }
 
+  // Sum lines added/deleted from merged PRs
+  let linesAdded = 0;
+  let linesDeleted = 0;
+  for (const repo of collection.pullRequestContributionsByRepository) {
+    for (const node of (repo.contributions.nodes ?? [])) {
+      if (node.pullRequest.merged) {
+        linesAdded += node.pullRequest.additions;
+        linesDeleted += node.pullRequest.deletions;
+      }
+    }
+  }
+
   // C1: Sum all contribution types
   const totalPRs = collection.pullRequestContributionsByRepository.reduce(
     (sum, r) => sum + r.contributions.totalCount, 0
@@ -267,6 +299,8 @@ export async function fetchContributions(
     contributions,
     repoMetadata,
     calendarWeeks,
+    linesAdded,
+    linesDeleted,
   };
 }
 
@@ -313,6 +347,8 @@ export async function fetchAllContributions(
       contributions: [],
       repoMetadata: [],
       calendarWeeks: [],
+      linesAdded: 0,
+      linesDeleted: 0,
     };
   }
 
@@ -337,6 +373,8 @@ export async function fetchAllContributions(
     contributions: results.flatMap((r) => r.contributions),
     repoMetadata: deduplicateMetadata(results.flatMap((r) => r.repoMetadata)),
     calendarWeeks: results.flatMap((r) => r.calendarWeeks),
+    linesAdded: results.reduce((sum, r) => sum + r.linesAdded, 0),
+    linesDeleted: results.reduce((sum, r) => sum + r.linesDeleted, 0),
   };
 
   return merged;
