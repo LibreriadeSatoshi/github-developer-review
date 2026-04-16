@@ -14,8 +14,18 @@ declare module "@auth/core/jwt" {
   }
 }
 
+const cookieOptions = { httpOnly: true, sameSite: "lax" as const, path: "/", secure: true };
+
 const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  cookies: {
+    sessionToken:      { name: "authjs.session-token",       options: cookieOptions },
+    callbackUrl:       { name: "authjs.callback-url",        options: { ...cookieOptions, httpOnly: false } },
+    csrfToken:         { name: "authjs.csrf-token",          options: cookieOptions },
+    pkceCodeVerifier:  { name: "authjs.pkce.code_verifier",  options: cookieOptions },
+    state:             { name: "authjs.state",               options: cookieOptions },
+    nonce:             { name: "authjs.nonce",               options: cookieOptions },
+  },
   providers: [GitHub({ checks: ["state"] })],
   callbacks: {
     jwt({ token, account }) {
