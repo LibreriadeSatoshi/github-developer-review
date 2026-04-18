@@ -46,14 +46,26 @@ describe("proxy", () => {
       expect(new URL(response.headers.get("location")!).pathname).toBe("/");
     });
 
-    it("redirects /api/github/* to /", async () => {
+    it("returns 401 JSON for /api/github/* (no redirect)", async () => {
       const { proxy } = await import("@/proxy");
       const response = await proxy(
         createRequest("/api/github/overview/test")
       );
 
-      expect(response.status).toBe(307);
-      expect(new URL(response.headers.get("location")!).pathname).toBe("/");
+      expect(response.status).toBe(401);
+      const body = await response.json();
+      expect(body).toEqual({ error: "Unauthorized" });
+    });
+
+    it("returns 401 JSON for /api/developers/* (no redirect)", async () => {
+      const { proxy } = await import("@/proxy");
+      const response = await proxy(
+        createRequest("/api/developers/export")
+      );
+
+      expect(response.status).toBe(401);
+      const body = await response.json();
+      expect(body).toEqual({ error: "Unauthorized" });
     });
 
     it("allows / (login page)", async () => {

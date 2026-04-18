@@ -1,26 +1,8 @@
 import { RateLimitError, type RateLimitState } from "./types";
 
 const GITHUB_API = "https://api.github.com";
-const RATE_LIMIT_THRESHOLD = 5;
 const MAX_WAIT_SECONDS = 60;
 const MAX_RETRIES = 3;
-
-const rateLimitStates = new Map<string, RateLimitState>();
-
-export function getRateLimitState(token: string): RateLimitState {
-  return rateLimitStates.get(token) ?? { remaining: 100, resetAt: 0 };
-}
-
-export function _setRateLimitState(
-  token: string,
-  state: RateLimitState
-): void {
-  rateLimitStates.set(token, state);
-}
-
-export function _resetForTesting(): void {
-  rateLimitStates.clear();
-}
 
 function parseRateLimitHeaders(headers: Headers): RateLimitState {
   const remaining = headers.get("x-ratelimit-remaining");
@@ -46,12 +28,6 @@ export async function githubFetch(
   const url = path.startsWith("http") ? path : `${GITHUB_API}${path}`;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Pre-flight check
-    const state = getRateLimitState(token);
-    if (state.remaining < RATE_LIMIT_THRESHOLD && state.resetAt > Date.now()) {
-      await waitForReset(state.resetAt);
-    }
-
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -60,7 +36,6 @@ export async function githubFetch(
     });
 
     const newState = parseRateLimitHeaders(response.headers);
-    rateLimitStates.set(token, newState);
 
     if (response.status === 403) {
       const waitSeconds = Math.max(0, (newState.resetAt - Date.now()) / 1000);
