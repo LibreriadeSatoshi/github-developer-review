@@ -36,6 +36,8 @@ function makeOverview(overrides: Partial<DeveloperOverview> = {}): DeveloperOver
     calendarWeeks: [],
     linesAdded: 500,
     linesDeleted: 200,
+    linesAddedAll: 600,
+    linesDeletedAll: 250,
     ...overrides,
   };
 }

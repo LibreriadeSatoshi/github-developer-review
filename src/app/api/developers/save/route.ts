@@ -72,6 +72,8 @@ export async function POST(request: Request) {
       total_contributions: overview.totalContributions,
       lines_added: overview.linesAdded ?? 0,
       lines_deleted: overview.linesDeleted ?? 0,
+      lines_added_all: overview.linesAddedAll ?? 0,
+      lines_deleted_all: overview.linesDeletedAll ?? 0,
       account_created_at: overview.createdAt.split("T")[0],
       profile_json: overview,
     })

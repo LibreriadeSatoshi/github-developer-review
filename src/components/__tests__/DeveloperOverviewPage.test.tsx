@@ -34,6 +34,8 @@ function makeOverview(): DeveloperOverview {
     calendarWeeks: [],
     linesAdded: 0,
     linesDeleted: 0,
+    linesAddedAll: 0,
+    linesDeletedAll: 0,
   };
 }
 

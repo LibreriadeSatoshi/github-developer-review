@@ -76,6 +76,8 @@ export async function GET(
       calendarWeeks: result.calendarWeeks,
       linesAdded: result.linesAdded,
       linesDeleted: result.linesDeleted,
+      linesAddedAll: result.linesAddedAll,
+      linesDeletedAll: result.linesDeletedAll,
     };
 
     await setCache(cacheKey, overview);

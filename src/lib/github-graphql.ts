@@ -150,6 +150,8 @@ interface FetchContributionsResult {
   calendarWeeks: ContributionCalendarWeek[];
   linesAdded: number;
   linesDeleted: number;
+  linesAddedAll: number;
+  linesDeletedAll: number;
 }
 
 export async function fetchContributions(
@@ -237,11 +239,15 @@ export async function fetchContributions(
     });
   }
 
-  // Sum lines added/deleted from merged PRs
+  // Sum lines added/deleted — merged only and all PRs
   let linesAdded = 0;
   let linesDeleted = 0;
+  let linesAddedAll = 0;
+  let linesDeletedAll = 0;
   for (const repo of collection.pullRequestContributionsByRepository) {
     for (const node of (repo.contributions.nodes ?? [])) {
+      linesAddedAll += node.pullRequest.additions;
+      linesDeletedAll += node.pullRequest.deletions;
       if (node.pullRequest.merged) {
         linesAdded += node.pullRequest.additions;
         linesDeleted += node.pullRequest.deletions;
@@ -301,6 +307,8 @@ export async function fetchContributions(
     calendarWeeks,
     linesAdded,
     linesDeleted,
+    linesAddedAll,
+    linesDeletedAll,
   };
 }
 
@@ -349,6 +357,8 @@ export async function fetchAllContributions(
       calendarWeeks: [],
       linesAdded: 0,
       linesDeleted: 0,
+      linesAddedAll: 0,
+      linesDeletedAll: 0,
     };
   }
 
@@ -375,6 +385,8 @@ export async function fetchAllContributions(
     calendarWeeks: results.flatMap((r) => r.calendarWeeks),
     linesAdded: results.reduce((sum, r) => sum + r.linesAdded, 0),
     linesDeleted: results.reduce((sum, r) => sum + r.linesDeleted, 0),
+    linesAddedAll: results.reduce((sum, r) => sum + r.linesAddedAll, 0),
+    linesDeletedAll: results.reduce((sum, r) => sum + r.linesDeletedAll, 0),
   };
 
   return merged;
