@@ -27,6 +27,17 @@ function renderModal(props: Partial<React.ComponentProps<typeof SaveDeveloperMod
   return { onOpenChange };
 }
 
+function renderAndSave(date?: string) {
+  const { onOpenChange } = renderModal();
+  if (date !== undefined) {
+    fireEvent.change(screen.getByPlaceholderText("MM/DD/YYYY"), {
+      target: { value: date },
+    });
+  }
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+  return { onOpenChange };
+}
+
 describe("SaveDeveloperModal", () => {
   beforeEach(() => {
     mockFetch.mockResolvedValue({
@@ -50,11 +61,7 @@ describe("SaveDeveloperModal", () => {
   });
 
   it("shows validation error for invalid date format without calling API", async () => {
-    renderModal();
-    fireEvent.change(screen.getByPlaceholderText("MM/DD/YYYY"), {
-      target: { value: "13/40/2024" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    renderAndSave("13/40/2024");
     await waitFor(() => {
       expect(screen.getByText(/invalid date/i)).toBeInTheDocument();
     });
@@ -62,11 +69,7 @@ describe("SaveDeveloperModal", () => {
   });
 
   it("shows validation error for calendar-invalid date (02/31/2024) without calling API", async () => {
-    renderModal();
-    fireEvent.change(screen.getByPlaceholderText("MM/DD/YYYY"), {
-      target: { value: "02/31/2024" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    renderAndSave("02/31/2024");
     await waitFor(() => {
       expect(screen.getByText(/invalid date/i)).toBeInTheDocument();
     });
@@ -74,8 +77,7 @@ describe("SaveDeveloperModal", () => {
   });
 
   it("calls fetch with blank date and succeeds", async () => {
-    const { onOpenChange } = renderModal();
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    const { onOpenChange } = renderAndSave();
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/developers/save",
@@ -91,13 +93,8 @@ describe("SaveDeveloperModal", () => {
   });
 
   it("calls fetch with valid date and shows success toast", async () => {
-    const { onOpenChange } = renderModal();
+    const { onOpenChange } = renderAndSave("01/12/2024");
     const { toast } = await import("sonner");
-
-    fireEvent.change(screen.getByPlaceholderText("MM/DD/YYYY"), {
-      target: { value: "01/12/2024" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalled();
@@ -107,9 +104,7 @@ describe("SaveDeveloperModal", () => {
 
   it("shows reload message on 409 response", async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 409 });
-    renderModal();
-
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    renderAndSave();
 
     await waitFor(() => {
       expect(
@@ -120,9 +115,7 @@ describe("SaveDeveloperModal", () => {
 
   it("shows generic error on non-409 failure", async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 500 });
-    renderModal();
-
-    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+    renderAndSave();
 
     await waitFor(() => {
       expect(screen.getByText(/failed to save/i)).toBeInTheDocument();

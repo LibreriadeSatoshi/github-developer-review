@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+type GithubFetch = Awaited<ReturnType<typeof import("@/lib/github-search")>>["githubFetch"];
+let githubFetch: GithubFetch;
+
 const originalFetch = globalThis.fetch;
 
 describe("github-search", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.useFakeTimers();
     vi.stubGlobal(
       "fetch",
@@ -17,6 +20,7 @@ describe("github-search", () => {
         }),
       })
     );
+    ({ githubFetch } = await import("@/lib/github-search"));
   });
 
   afterEach(() => {
@@ -26,8 +30,6 @@ describe("github-search", () => {
   });
 
   it("sends Bearer auth header", async () => {
-    const { githubFetch } = await import("@/lib/github-search");
-
     await githubFetch("/search/repositories?q=bitcoin", "test-token");
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -51,8 +53,6 @@ describe("github-search", () => {
         "x-ratelimit-reset": String(farFuture),
       }),
     } as Response);
-
-    const { githubFetch } = await import("@/lib/github-search");
 
     await expect(
       githubFetch("/test", "rate-limited-token")
@@ -81,8 +81,6 @@ describe("github-search", () => {
         }),
       } as Response);
 
-    const { githubFetch } = await import("@/lib/github-search");
-
     const fetchPromise = githubFetch("/test", "retry-token");
     await vi.advanceTimersByTimeAsync(15_000);
     const result = await fetchPromise;
@@ -108,8 +106,6 @@ describe("github-search", () => {
       } as Response;
     });
 
-    const { githubFetch } = await import("@/lib/github-search");
-
     await expect(githubFetch("/test", "max-retry-token")).rejects.toThrow(
       "Rate limit"
     );
@@ -130,8 +126,6 @@ describe("github-search", () => {
       }),
     } as Response);
 
-    const { githubFetch } = await import("@/lib/github-search");
-
     await expect(githubFetch("/test", "token-404")).rejects.toThrow(
       "GitHub API error: 404 Not Found"
     );
@@ -149,8 +143,6 @@ describe("github-search", () => {
       }),
     } as Response);
 
-    const { githubFetch } = await import("@/lib/github-search");
-
     await expect(githubFetch("/test", "token-500")).rejects.toThrow(
       "GitHub API error: 500 Internal Server Error"
     );
@@ -163,8 +155,6 @@ describe("github-search", () => {
       json: async () => ({}),
       headers: new Headers({}),
     } as Response);
-
-    const { githubFetch } = await import("@/lib/github-search");
 
     await expect(githubFetch("/test", "no-headers-token")).resolves.toBeDefined();
   });
