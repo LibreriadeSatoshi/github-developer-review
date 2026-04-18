@@ -23,6 +23,11 @@ function normalizeDateInput(input: unknown): string | null {
   return `${year}-${month}-${day}`;
 }
 
+async function rollbackSnapshot(snapshotId: number) {
+  const { error } = await supabase.from("developer_snapshots").delete().eq("id", snapshotId);
+  if (error) logger.error("[save] rollback failed", { snapshotId, error });
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.accessToken) {
@@ -78,10 +83,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to save snapshot" }, { status: 500 });
   }
 
+  const snapshotId = data.id;
+
   if (overview.bitcoinRepos.length > 0) {
     const { error: reposError } = await supabase.from("snapshot_bitcoin_repos").insert(
       overview.bitcoinRepos.map((r) => ({
-        snapshot_id: data.id,
+        snapshot_id: snapshotId,
         repo_name: r.nameWithOwner,
         tier: r.tier,
         reason: r.reason,
@@ -90,13 +97,14 @@ export async function POST(request: Request) {
     );
     if (reposError) {
       logger.error("[save] snapshot_bitcoin_repos insert failed", { error: reposError });
+      await rollbackSnapshot(snapshotId);
       return NextResponse.json({ error: "Failed to save snapshot repos" }, { status: 500 });
     }
   }
 
   const days = overview.calendarWeeks.flatMap((w) =>
     w.contributionDays.map((d) => ({
-      snapshot_id: data.id,
+      snapshot_id: snapshotId,
       contribution_date: d.date,
       contribution_count: d.contributionCount,
       color: d.color,
@@ -108,6 +116,7 @@ export async function POST(request: Request) {
       .insert(days);
     if (daysError) {
       logger.error("[save] snapshot_contribution_days insert failed", { error: daysError });
+      await rollbackSnapshot(snapshotId);
       return NextResponse.json({ error: "Failed to save contribution days" }, { status: 500 });
     }
   }
@@ -115,7 +124,7 @@ export async function POST(request: Request) {
   if (overview.contributions.length > 0) {
     const { error: contribError } = await supabase.from("snapshot_contributions").insert(
       overview.contributions.map((c) => ({
-        snapshot_id: data.id,
+        snapshot_id: snapshotId,
         type: c.type,
         count: c.count,
         repo_name: c.repoNameWithOwner,
@@ -125,9 +134,10 @@ export async function POST(request: Request) {
     );
     if (contribError) {
       logger.error("[save] snapshot_contributions insert failed", { error: contribError });
+      await rollbackSnapshot(snapshotId);
       return NextResponse.json({ error: "Failed to save contributions" }, { status: 500 });
     }
   }
 
-  return NextResponse.json({ id: data.id, savedAt: data.saved_at });
+  return NextResponse.json({ id: snapshotId, savedAt: data.saved_at });
 }
