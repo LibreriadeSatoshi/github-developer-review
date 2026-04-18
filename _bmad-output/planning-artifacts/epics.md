@@ -183,6 +183,48 @@ So that I can persist the snapshot with the correct baseline date in one action.
 
 ---
 
+## Epic 3: Infrastructure & Observability
+
+Zero-dependency native logger replaces scattered `console.*` calls, resolves TD-004, and enforces the architecture rule that all server-side modules must use `@/lib/logger`.
+
+### Story 3.1: Native Logger
+
+As a developer,
+I want a centralized zero-dependency logger singleton at `src/lib/logger.ts`,
+So that all server-side log output is level-controlled by `DEBUG_CONSOLE` and structured as JSON in production.
+
+**Acceptance Criteria:**
+
+**Given** `DEBUG_CONSOLE` is not set (or any value other than `"TRUE"`)
+**When** the app runs
+**Then** only `error` and `warn` messages are emitted; `info` and `debug` are suppressed
+
+**Given** `DEBUG_CONSOLE=TRUE`
+**When** the app runs
+**Then** all log levels including `debug` are emitted
+
+**Given** `NODE_ENV=production`
+**When** a log entry is emitted
+**Then** output is a single-line JSON string: `{"timestamp":"...","level":"...","message":"..."}` (plus optional `meta` field)
+
+**Given** `NODE_ENV` is anything other than `production`
+**When** a log entry is emitted
+**Then** output uses `console[level]` directly in human-readable format
+
+**Given** `cache.ts` encounters a Redis read or write error
+**When** the error occurs
+**Then** `logger.error()` is called — no direct `console.error()` remains
+
+**Given** `github-stats.ts` logs a warning or info
+**When** the condition occurs
+**Then** `logger.warn()` / `logger.info()` is called — no direct `console.warn()` / `console.info()` remains
+
+**Given** any file outside `src/lib/logger.ts`
+**When** it needs to log
+**Then** it imports `logger` from `@/lib/logger` — no other file calls `console.*` directly
+
+---
+
 ## Epic 2: Export Developer Profiles CSV
 
 Operator can download a CSV of all saved developer snapshots, filterable by username and date range, optimized for Excel pivot table analysis.

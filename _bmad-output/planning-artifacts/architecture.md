@@ -1,7 +1,7 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
 status: 'complete'
-completedAt: '2026-04-17'
+completedAt: '2026-04-18'
 inputDocuments: ['README.md', '_bmad-output/project-context.md']
 workflowType: 'architecture'
 project_name: 'github-developer-review'
@@ -112,6 +112,12 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - Setup: `src/test/setup.ts` with jest-dom matchers
 - No E2E tests (Playwright/Cypress) — unit/integration only
 
+### Logging
+- **Native wrapper** — zero-dependency logger singleton at `src/lib/logger.ts` (no external package)
+- Level: `"warn"` by default; `"debug"` when `DEBUG_CONSOLE=TRUE`
+- Format: JSON (`timestamp + level + message + meta`) in production (`NODE_ENV=production`); plain `console.*` in development
+- **Boundary:** no direct `console.*` calls in server-side modules — always use `logger` from `@/lib/logger`
+
 ### Charts
 - **Recharts 3.8.0** — contribution timeline and heatmap visualizations
 
@@ -128,11 +134,29 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 ### Data Architecture
 
-**Storage:** Stateless — no persistent database. Only server-side cache (Redis).
-- **Cache:** Upstash Redis via `@upstash/redis`, optional with graceful fallback
-- **Cache-aside pattern:** check → miss → fetch → store on all API routes
-- **TTL divergence:** contributions = 600s (10 min), overview = 3600s (1 hr, `DEFAULT_TTL`)
-- **Fallback:** `getCached`/`setCache` wrap all Redis calls in try/catch; null returned on error
+**Storage:** Two-tier — optional server-side cache (Redis) + append-only persistent database (Supabase).
+
+**Cache layer — Upstash Redis (`@upstash/redis`, optional):**
+- Cache-aside pattern: check → miss → fetch → store on all API routes
+- TTL divergence: contributions = 600s (10 min), overview = 3600s (1 hr, `DEFAULT_TTL`)
+- Fallback: `getCached`/`setCache` wrap all Redis calls in try/catch; null returned on error
+- Save route reads from Redis (`overview:2:{username}`) — returns 409 if cache miss
+
+**Persistence layer — Supabase PostgreSQL (`@supabase/supabase-js`, server-side service role only):**
+- Client singleton at `src/lib/supabase.ts` — no direct `@supabase/supabase-js` imports in route files
+- `SUPABASE_SERVICE_ROLE_KEY` never exposed to client; all access server-side only
+- RLS enabled on all tables; service role bypasses RLS — no anon/auth key access
+
+**Schema:**
+
+| Table | Purpose |
+|---|---|
+| `developer_snapshots` | One row per save — username, program_entry_date, total_contributions, lines_added/deleted, account_created_at, profile_json (full JSONB snapshot) |
+| `snapshot_bitcoin_repos` | Bitcoin repos per snapshot — repo_name, tier, reason, url |
+| `snapshot_contribution_days` | Calendar days per snapshot — contribution_date (UNIQUE with snapshot_id), contribution_count, color |
+| `snapshot_contributions` | Contributions by repo+type per snapshot — type (commit/pr/issue/review), count, repo_name, date_from, date_to |
+
+All child tables use `ON DELETE CASCADE` FK to `developer_snapshots.id`. Snapshots are append-only — existing rows are never updated or deleted.
 
 ⚠️ **Technical Debt — TD-001:** `Redis.fromEnv()` is called at module load level in `cache.ts`. If `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are absent and the SDK throws at instantiation (not at request time), every route importing `cache.ts` fails to load — not just cache calls. Risk level: LOW (README says optional, app appears to handle it), but not verifiably safe without testing cold startup without env vars.
 
@@ -210,7 +234,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 | TD-001 | LOW | `Redis.fromEnv()` at module load — unclear failure mode on missing env vars | S | Yes |
 | TD-002 | HIGH | `src/proxy.ts` middleware never wired up — no centralized auth guard, dead code with tests | M | Yes |
 | TD-003 | MEDIUM | In-memory rate limit state doesn't persist across serverless invocations | M | Yes |
-| TD-004 | LOW | `console.error` in `cache.ts` not controlled by `DEBUG_CONSOLE` pattern | S | Yes |
+| TD-004 | ~~LOW~~ **RESOLVED** | `console.error` in `cache.ts` replaced by `logger.error()` — zero-dependency native wrapper at `src/lib/logger.ts` controls all server-side log output via `DEBUG_CONSOLE` | S | Yes |
 
 ## Implementation Patterns & Consistency Rules
 
@@ -332,7 +356,7 @@ type XxxError = { status: number; message: string; resetAt?: number };
 - Use labeled cache key segments
 - Route all GitHub API calls through the existing fetch wrappers
 - Never expose `session.accessToken` outside of server-side code
-- Never add `console.log` — use `DEBUG_CONSOLE` pattern
+- Never use `console.*` — use `logger` from `@/lib/logger` (Winston singleton). Level is controlled by `DEBUG_CONSOLE=TRUE`
 - Use `cn()` for all className composition
 - Add auth check to every new page and API route (middleware not active — no safety net)
 
@@ -461,12 +485,20 @@ github-developer-review/
 ### Data Flow
 
 ```
-Browser → SWR hook → /api/github/* route → auth() check
-                                          → getCached()  → [hit]  → NextResponse.json()
-                                          → GitHub API   → [miss] → setCache()
-                                                         → classifyRepos()  (overview only)
-                                                         → fetchLinesOfCode() (overview only)
-                                                                   → NextResponse.json()
+Browser → SWR hook → /api/github/* route  → auth() check
+                                           → getCached()  → [hit]  → NextResponse.json()
+                                           → GitHub API   → [miss] → setCache()
+                                                          → classifyRepos()  (overview only)
+                                                          → fetchLinesOfCode() (overview only)
+                                                                    → NextResponse.json()
+
+Browser → SaveDeveloperModal → POST /api/developers/save → auth() check
+                                                         → getCached(overview:2:{username}) → [miss] → 409
+                                                         → supabase.insert(developer_snapshots)
+                                                         → supabase.insert(snapshot_bitcoin_repos)
+                                                         → supabase.insert(snapshot_contribution_days)
+                                                         → supabase.insert(snapshot_contributions)
+                                                                          → 200 { id, savedAt }
 ```
 
 ## Architecture Validation Results
@@ -490,6 +522,7 @@ Browser → SWR hook → /api/github/* route → auth() check
 | Drill-down: PRs, reviews, issues + filters + pagination | `contributions` route + `ContributionDrillDown` + `use-contribution-filters` |
 | Responsive table/card layout | `ContributionTable` + `ContributionCard` + `MobileFilterSheet` |
 | Rate limit awareness UI | `RateLimitBadge` + `use-rate-limit` + `RateLimitError` |
+| Developer snapshot persistence | `POST /api/developers/save` + `src/lib/supabase.ts` + 4 Supabase tables |
 | Netlify deployment | `@netlify/plugin-nextjs` + `netlify.toml` |
 | CI | `.github/workflows/ci.yml` |
 

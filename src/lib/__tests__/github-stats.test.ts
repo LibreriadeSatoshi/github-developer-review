@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/logger", () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
 import { fetchLinesOfCode } from "@/lib/github-stats";
+import { logger } from "@/lib/logger";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -71,6 +77,9 @@ describe("fetchLinesOfCode", () => {
     expect(result.linesDeleted).toBe(0);
     expect(result.resolved).toBe(false);
     expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "[github-stats] Stats not ready for org/slow, defaulting to 0"
+    );
   });
 
   it("skips repos that return 404 or 403 silently", async () => {
@@ -132,5 +141,8 @@ describe("fetchLinesOfCode", () => {
     await promise;
 
     expect(mockFetch).toHaveBeenCalledTimes(20);
+    expect(logger.info).toHaveBeenCalledWith(
+      "[github-stats] Capping repos from 25 to 20 for alice"
+    );
   });
 });

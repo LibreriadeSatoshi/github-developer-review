@@ -82,10 +82,45 @@ export async function POST(request: Request) {
         snapshot_id: data.id,
         repo_name: r.nameWithOwner,
         tier: r.tier,
+        reason: r.reason,
+        url: r.url ?? null,
       }))
     );
     if (reposError) {
       return NextResponse.json({ error: "Failed to save snapshot repos" }, { status: 500 });
+    }
+  }
+
+  const days = overview.calendarWeeks.flatMap((w) =>
+    w.contributionDays.map((d) => ({
+      snapshot_id: data.id,
+      contribution_date: d.date,
+      contribution_count: d.contributionCount,
+      color: d.color,
+    }))
+  );
+  if (days.length > 0) {
+    const { error: daysError } = await supabase
+      .from("snapshot_contribution_days")
+      .insert(days);
+    if (daysError) {
+      return NextResponse.json({ error: "Failed to save contribution days" }, { status: 500 });
+    }
+  }
+
+  if (overview.contributions.length > 0) {
+    const { error: contribError } = await supabase.from("snapshot_contributions").insert(
+      overview.contributions.map((c) => ({
+        snapshot_id: data.id,
+        type: c.type,
+        count: c.count,
+        repo_name: c.repoNameWithOwner,
+        date_from: c.dateRange.from,
+        date_to: c.dateRange.to,
+      }))
+    );
+    if (contribError) {
+      return NextResponse.json({ error: "Failed to save contributions" }, { status: 500 });
     }
   }
 

@@ -7,6 +7,12 @@
 - `/api/` prefix in proxy is broad — `config.matcher` already exempts `/api/auth`; any future intentionally-public API route will need an explicit exemption added to `publicPaths` or the matcher.
 - Unvalidated cache object shape — `getCached<T>` is a TypeScript cast, not runtime schema validation. Any corrupted Redis data would crash at the call site. Systemic pattern throughout the codebase; address holistically if data integrity issues arise.
 
+## Deferred from: code review of 3-1-native-logger (2026-04-18)
+
+- Binary log level control (warn or debug only) — no intermediate `info` level without also enabling `debug`; by design per spec, revisit if observability requirements grow.
+- `process.env` read on every log call — intentional for testability and serverless hot-reload; minor perf overhead in high-frequency paths.
+- No numeric `severity` field in JSON output — relevant if a structured log aggregator (Datadog, CloudWatch) is added; add `levelno` at that point.
+
 ## Deferred from: code review of 1-2-save-button-and-modal-ui (2026-04-18)
 
 - No CSRF protection on `POST /api/developers/save` — backend architectural concern from Story 1.1; depends on SameSite cookie policy and Next.js 16 defaults.

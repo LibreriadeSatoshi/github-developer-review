@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("@/lib/logger", () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
 const mockStore = new Map<string, unknown>();
 
 const { mockRedis } = vi.hoisted(() => ({
@@ -18,6 +22,7 @@ vi.mock("@upstash/redis", () => ({
 }));
 
 import { getCached, setCache } from "@/lib/cache";
+import { logger } from "@/lib/logger";
 
 describe("cache", () => {
   beforeEach(() => {
@@ -53,13 +58,17 @@ describe("cache", () => {
   });
 
   it("returns null when redis.get throws", async () => {
-    mockRedis.get.mockRejectedValueOnce(new Error("Redis connection failed"));
+    const err = new Error("Redis connection failed");
+    mockRedis.get.mockRejectedValueOnce(err);
     const result = await getCached("any-key");
     expect(result).toBeNull();
+    expect(logger.error).toHaveBeenCalledWith('Cache read failed for key "any-key"', err);
   });
 
   it("does not throw when redis.set throws", async () => {
-    mockRedis.set.mockRejectedValueOnce(new Error("Redis connection failed"));
+    const err = new Error("Redis connection failed");
+    mockRedis.set.mockRejectedValueOnce(err);
     await expect(setCache("any-key", { data: 1 })).resolves.toBeUndefined();
+    expect(logger.error).toHaveBeenCalledWith('Cache write failed for key "any-key"', err);
   });
 });

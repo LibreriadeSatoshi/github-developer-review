@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 const REPO_CAP = 20;
 
 interface ContributorWeek {
@@ -43,7 +45,7 @@ async function fetchRepoStats(
       await new Promise((r) => setTimeout(r, 2000));
       return fetchRepoStats(repoNameWithOwner, token, true);
     }
-    console.warn(`[github-stats] Stats not ready for ${repoNameWithOwner}, defaulting to 0`);
+    logger.warn(`[github-stats] Stats not ready for ${repoNameWithOwner}, defaulting to 0`);
     return null;
   }
 
@@ -52,7 +54,7 @@ async function fetchRepoStats(
   }
 
   if (!res.ok) {
-    console.warn(`[github-stats] Unexpected ${res.status} for ${repoNameWithOwner}`);
+    logger.warn(`[github-stats] Unexpected ${res.status} for ${repoNameWithOwner}`);
     return null;
   }
 
@@ -67,7 +69,7 @@ export async function fetchLinesOfCode(
   const sorted = [...repos].sort((a, b) => b.count - a.count);
 
   if (sorted.length > REPO_CAP) {
-    console.info(`[github-stats] Capping repos from ${sorted.length} to ${REPO_CAP} for ${username}`);
+    logger.info(`[github-stats] Capping repos from ${sorted.length} to ${REPO_CAP} for ${username}`);
   }
 
   const capped = sorted.slice(0, REPO_CAP);
