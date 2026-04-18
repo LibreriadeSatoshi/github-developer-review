@@ -102,14 +102,21 @@ export async function POST(request: Request) {
     }
   }
 
-  const days = overview.calendarWeeks.flatMap((w) =>
-    w.contributionDays.map((d) => ({
-      snapshot_id: snapshotId,
-      contribution_date: d.date,
-      contribution_count: d.contributionCount,
-      color: d.color,
-    }))
-  );
+  const seenDates = new Set<string>();
+  const days = overview.calendarWeeks
+    .flatMap((w) =>
+      w.contributionDays.map((d) => ({
+        snapshot_id: snapshotId,
+        contribution_date: d.date,
+        contribution_count: d.contributionCount,
+        color: d.color,
+      }))
+    )
+    .filter((d) => {
+      if (seenDates.has(d.contribution_date)) return false;
+      seenDates.add(d.contribution_date);
+      return true;
+    });
   if (days.length > 0) {
     const { error: daysError } = await supabase
       .from("snapshot_contribution_days")
