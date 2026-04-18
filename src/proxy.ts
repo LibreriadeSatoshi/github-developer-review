@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
-const publicPaths = ["/"];
+const publicPaths = ["/", "/auth/denied"];
 
 export async function proxy(request: Request) {
   const url = new URL(request.url);

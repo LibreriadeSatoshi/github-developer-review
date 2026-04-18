@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 type NextAuthConfig = {
   callbacks?: {
+    signIn?: (args: { account?: { access_token?: string } | null }) => Promise<boolean | string>;
     jwt?: (args: { token: Record<string, unknown>; account?: { access_token?: string } | null }) => Record<string, unknown>;
     session?: (args: { session: Record<string, unknown>; token: Record<string, unknown> }) => Record<string, unknown>;
   };
@@ -29,7 +30,6 @@ describe("auth", () => {
     capturedConfig = null;
     vi.resetModules();
 
-    // Re-mock after resetModules
     vi.doMock("next-auth", () => ({
       default: vi.fn((config: NextAuthConfig) => {
         capturedConfig = config;
@@ -82,5 +82,65 @@ describe("auth", () => {
 
     const result = capturedConfig!.callbacks!.session!({ session, token }) as { accessToken?: string };
     expect(result.accessToken).toBe("gh_token_abc");
+  });
+
+  describe("signIn callback", () => {
+    it("returns true when AUTH_GITHUB_ORG is not set", async () => {
+      delete process.env.AUTH_GITHUB_ORG;
+      await import("@/lib/auth");
+
+      const result = await capturedConfig!.callbacks!.signIn!({
+        account: { access_token: "tok" },
+      });
+      expect(result).toBe(true);
+    });
+
+    it("returns true when user is a member of the org", async () => {
+      process.env.AUTH_GITHUB_ORG = "myorg";
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => [{ login: "myorg" }, { login: "other" }],
+      }));
+
+      await import("@/lib/auth");
+      const result = await capturedConfig!.callbacks!.signIn!({
+        account: { access_token: "tok" },
+      });
+      expect(result).toBe(true);
+
+      vi.unstubAllGlobals();
+      delete process.env.AUTH_GITHUB_ORG;
+    });
+
+    it("returns /auth/denied when user is not in the org", async () => {
+      process.env.AUTH_GITHUB_ORG = "myorg";
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => [{ login: "other-org" }],
+      }));
+
+      await import("@/lib/auth");
+      const result = await capturedConfig!.callbacks!.signIn!({
+        account: { access_token: "tok" },
+      });
+      expect(result).toBe("/auth/denied");
+
+      vi.unstubAllGlobals();
+      delete process.env.AUTH_GITHUB_ORG;
+    });
+
+    it("returns /auth/denied when GitHub API call throws (fail closed)", async () => {
+      process.env.AUTH_GITHUB_ORG = "myorg";
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
+
+      await import("@/lib/auth");
+      const result = await capturedConfig!.callbacks!.signIn!({
+        account: { access_token: "tok" },
+      });
+      expect(result).toBe("/auth/denied");
+
+      vi.unstubAllGlobals();
+      delete process.env.AUTH_GITHUB_ORG;
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-type GithubFetch = Awaited<ReturnType<typeof import("@/lib/github-search")>>["githubFetch"];
+type GithubFetch = typeof import("@/lib/github-search")["githubFetch"];
 let githubFetch: GithubFetch;
 
 const originalFetch = globalThis.fetch;

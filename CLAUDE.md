@@ -74,6 +74,7 @@ UPSTASH_REDIS_REST_URL    # Optional — caching; app degrades gracefully withou
 UPSTASH_REDIS_REST_TOKEN  # Optional
 SUPABASE_URL              # Required for snapshot save
 SUPABASE_SERVICE_ROLE_KEY # Required for snapshot save (server-side only)
+AUTH_GITHUB_ORG           # Optional — GitHub org slug; only members can log in (omit to allow all GitHub users)
 DEBUG_CONSOLE             # Set to "TRUE" for verbose GitHub API logs
 ```
 

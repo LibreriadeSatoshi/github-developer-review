@@ -74,6 +74,13 @@ describe("proxy", () => {
 
       expect(response.status).toBe(200);
     });
+
+    it("allows /auth/denied without a session", async () => {
+      const { proxy } = await import("@/proxy");
+      const response = await proxy(createRequest("/auth/denied"));
+
+      expect(response.status).toBe(200);
+    });
   });
 
   describe("session without accessToken", () => {
