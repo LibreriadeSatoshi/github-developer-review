@@ -15,9 +15,12 @@ Evaluate Bitcoin open-source contributors for grant funding. Sign in with GitHub
 
 - **Next.js 16** (App Router), **React 19**
 - **NextAuth v5** (GitHub provider)
-- **Tailwind CSS v4**, **shadcn/ui**
+- **Tailwind CSS v4**, **shadcn/ui**, **Base UI 1.2**
 - **SWR** for data fetching; **Upstash Redis** for server-side caching (optional)
+- **Supabase** (PostgreSQL) for developer snapshot persistence
+- **Recharts** for contribution timeline charts
 - **Vitest** + **Testing Library** for tests
+- **Netlify** (`@netlify/plugin-nextjs`) for deployment
 
 ## Prerequisites
 
@@ -37,10 +40,15 @@ Create a `.env.local` in the project root:
 | `AUTH_SECRET` | Yes | Secret for NextAuth session encryption (e.g. `openssl rand -base64 32`) |
 | `AUTH_GITHUB_ID` | Yes | GitHub OAuth App Client ID |
 | `AUTH_GITHUB_SECRET` | Yes | GitHub OAuth App Client Secret |
+| `AUTH_URL` | Yes | Public URL of the app (e.g. `http://localhost:3000`) |
+| `AUTH_GITHUB_ORG` | No | GitHub org slug; only members of this org can log in (omit to allow all GitHub users) |
 | `UPSTASH_REDIS_REST_URL` | No | Upstash Redis REST URL (for server-side cache) |
 | `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis REST token |
-| `AUTH_URL` | Yes | Web URL for Github Login |
-| `DEBUG_CONSOLE` | No | View log in console, set to `TRUE` |
+| `SUPABASE_URL` | Yes* | Supabase project URL (required for snapshot saves) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes* | Supabase service role key — server-side only, never exposed to the client |
+| `DEBUG_CONSOLE` | No | Set to `TRUE` for verbose GitHub API logs in the console |
+
+\* Required only if you use the **Save snapshot** feature. Without these, the save route will fail but the rest of the app works normally.
 
 Without the Upstash vars, the app still runs; cache reads/writes will fail and the app will fall back to uncached GitHub API calls.
 
@@ -72,8 +80,11 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with GitHub, then u
 1. Push the repo to GitHub and connect it to [Netlify](https://app.netlify.com).
 2. Netlify auto-detects `netlify.toml`; no extra build config needed.
 3. In **Site settings → Environment variables**, add:
-   - `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `AUTH_URL`, `DEBUG_CONSOLE`
+   - `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `AUTH_URL`
+   - `AUTH_GITHUB_ORG` (optional, to restrict login to org members)
    - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (optional, for caching)
+   - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (required for snapshot saves)
+   - `DEBUG_CONSOLE` (optional, set to `TRUE` for verbose logs)
 4. Trigger a deploy.
 
 ## CI
