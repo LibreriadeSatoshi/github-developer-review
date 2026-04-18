@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { getCached } from "@/lib/cache";
+import { logger } from "@/lib/logger";
 import { supabase } from "@/lib/supabase";
 import type { DeveloperOverview } from "@/lib/types";
 import { GITHUB_USERNAME_RE } from "@/lib/utils";
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
+    logger.error("[save] snapshot insert failed", { error });
     return NextResponse.json({ error: "Failed to save snapshot" }, { status: 500 });
   }
 
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
       }))
     );
     if (reposError) {
+      logger.error("[save] snapshot_bitcoin_repos insert failed", { error: reposError });
       return NextResponse.json({ error: "Failed to save snapshot repos" }, { status: 500 });
     }
   }
@@ -104,6 +107,7 @@ export async function POST(request: Request) {
       .from("snapshot_contribution_days")
       .insert(days);
     if (daysError) {
+      logger.error("[save] snapshot_contribution_days insert failed", { error: daysError });
       return NextResponse.json({ error: "Failed to save contribution days" }, { status: 500 });
     }
   }
@@ -120,6 +124,7 @@ export async function POST(request: Request) {
       }))
     );
     if (contribError) {
+      logger.error("[save] snapshot_contributions insert failed", { error: contribError });
       return NextResponse.json({ error: "Failed to save contributions" }, { status: 500 });
     }
   }
