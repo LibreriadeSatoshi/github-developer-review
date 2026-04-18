@@ -3,6 +3,7 @@ import { Geist_Mono } from "next/font/google";
 import { Poppins } from "next/font/google";
 import { Providers } from "./providers";
 import { DebugAuth } from "@/components/DebugAuth";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -34,7 +35,10 @@ export default function RootLayout({
         className={`${poppins.variable} ${geistMono.variable} font-sans antialiased container bg-bg-black text-foreground`}
       >
         <DebugAuth enabled={debugEnabled} />
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

@@ -8,12 +8,14 @@ import { useRecentSearches } from "@/hooks/use-recent-searches";
 import { computeStats, aggregateMonthly } from "@/lib/stats";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { ProfileCard } from "@/components/ProfileCard";
+import { SaveDeveloperModal } from "@/components/SaveDeveloperModal";
 import { StatsGrid } from "@/components/StatsGrid";
 import { ContributionHeatmap } from "@/components/ContributionHeatmap";
 import { ContributionTimeline } from "@/components/ContributionTimeline";
 import { TopProjects } from "@/components/TopProjects";
 import { ContributionDrillDown } from "@/components/ContributionDrillDown";
 import { RateLimitBadge } from "@/components/RateLimitBadge";
+import { Button } from "@/components/ui/button";
 import {
   ProfileCardSkeleton,
   StatsGridSkeleton,
@@ -56,6 +58,7 @@ export function DeveloperOverviewPage({ username }: DeveloperOverviewPageProps) 
   const { data, error, isLoading, mutate } = useOverview(username);
   const { addSearch } = useRecentSearches();
   const [showAdjacent, setShowAdjacent] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const loadingMessage = useLoadingMessage(isLoading);
 
   // Record search once data loads
@@ -118,12 +121,28 @@ export function DeveloperOverviewPage({ username }: DeveloperOverviewPageProps) 
 
         {data && (
           <div className="space-y-8">
-            <ProfileCard
-              login={data.login}
-              name={data.name}
-              avatarUrl={data.avatarUrl}
-              bio={data.bio}
-              createdAt={data.createdAt}
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <ProfileCard
+                  login={data.login}
+                  name={data.name}
+                  avatarUrl={data.avatarUrl}
+                  bio={data.bio}
+                  createdAt={data.createdAt}
+                />
+              </div>
+              <Button
+                variant="outline"
+                className="mt-1 shrink-0"
+                onClick={() => setSaveOpen(true)}
+              >
+                Save
+              </Button>
+            </div>
+            <SaveDeveloperModal
+              username={data.login}
+              open={saveOpen}
+              onOpenChange={setSaveOpen}
             />
 
             <StatsGrid stats={computeStats(data, true)} />
