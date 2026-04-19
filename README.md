@@ -87,6 +87,39 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with GitHub, then u
    - `DEBUG_CONSOLE` (optional, set to `TRUE` for verbose logs)
 4. Trigger a deploy.
 
+## GitHub GraphQL data fetching
+
+All contribution data comes from GitHub's GraphQL API via a single query called once per year-window: `contributionsCollection(from: $from, to: $to)`.
+
+### Date window
+
+- `$from` — the user's GitHub account creation date (`user.createdAt`), obtained from a first lightweight fetch covering the last 12 months.
+- `$to` — the current UTC timestamp at request time.
+
+The full history is split into **1-year chunks** by `getYearRanges` (`src/lib/date-utils.ts`) and fetched with up to 3 concurrent requests. Results are merged into a single object.
+
+### What each call reads
+
+| Field | Description |
+|---|---|
+| `totalCommitContributions` | Total commit count for the window |
+| `commitContributionsByRepository` (max 100 repos) | Commit count per repo |
+| `issueContributions.totalCount` | Total issues opened |
+| `pullRequestContributionsByRepository` (max 100 repos, first 50 PRs each) | PR count per repo + additions/deletions/merged per PR node |
+| `pullRequestReviewContributionsByRepository` (max 100 repos) | Review count per repo |
+| `contributionCalendar.weeks[].contributionDays` | Daily contribution count + color for the heatmap |
+
+### Line counts
+
+- **`linesAdded` / `linesDeleted`** — sum of additions/deletions from **merged** PRs only (up to the first 50 per repo).
+- **`linesAddedAll` / `linesDeletedAll`** — same sum including open PRs.
+
+Both are limited to the 50 PR nodes fetched per repo; repos with more than 50 PRs will be under-counted.
+
+### Per-PR detail (REST)
+
+The expanded row in the contributions table (`ExpandedPRDetail`) fetches individual PR metadata on demand from the GitHub REST API (`src/lib/github-rest.ts`), which provides exact additions, deletions, file count, commit count, and review count for that specific PR regardless of merge status.
+
 ## CI
 
 The repo includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that on pull requests to `main` runs:
