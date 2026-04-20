@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const cacheKey = `overview:2:${username.toLowerCase()}`;
+  const cacheKey = `overview:3:${username.toLowerCase()}`;
   const overview = await getCached<DeveloperOverview>(cacheKey);
   if (!overview) {
     return NextResponse.json(

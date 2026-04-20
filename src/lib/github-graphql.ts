@@ -1,5 +1,4 @@
 import type { ContributionItem, ContributionCalendarWeek, DateRange } from "./types";
-import { AGGREGATED_SENTINEL } from "./types";
 import { getYearRanges } from "./date-utils";
 
 const GITHUB_GRAPHQL = "https://api.github.com/graphql";
@@ -26,10 +25,27 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
         }
         contributions {
           totalCount
+          nodes {
+            occurredAt
+            commitCount
+          }
         }
       }
-      issueContributions {
-        totalCount
+      issueContributionsByRepository(maxRepositories: 100) {
+        repository {
+          nameWithOwner
+          url
+          description
+          repositoryTopics(first: 10) {
+            nodes { topic { name } }
+          }
+        }
+        contributions {
+          totalCount
+          nodes {
+            occurredAt
+          }
+        }
       }
       pullRequestContributionsByRepository(maxRepositories: 100) {
         repository {
@@ -43,6 +59,7 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
         contributions(first: 50) {
           totalCount
           nodes {
+            occurredAt
             pullRequest {
               additions
               deletions
@@ -62,6 +79,9 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
         }
         contributions {
           totalCount
+          nodes {
+            occurredAt
+          }
         }
       }
       contributionCalendar {
@@ -81,7 +101,20 @@ interface RepositoryTopic {
   topic: { name: string };
 }
 
-interface PRNode {
+interface RepoData {
+  nameWithOwner: string;
+  url: string;
+  description: string | null;
+  repositoryTopics: { nodes: RepositoryTopic[] };
+}
+
+interface CommitContributionNode {
+  occurredAt: string;
+  commitCount: number;
+}
+
+interface PRContributionNode {
+  occurredAt: string;
   pullRequest: {
     additions: number;
     deletions: number;
@@ -89,17 +122,32 @@ interface PRNode {
   };
 }
 
-interface RepoContributionsByRepository {
-  repository: {
-    nameWithOwner: string;
-    url: string;
-    description: string | null;
-    repositoryTopics: { nodes: RepositoryTopic[] };
-  };
-  contributions: {
-    totalCount: number;
-    nodes?: PRNode[];
-  };
+interface IssueContributionNode {
+  occurredAt: string;
+}
+
+interface ReviewContributionNode {
+  occurredAt: string;
+}
+
+interface CommitRepoContributions {
+  repository: RepoData;
+  contributions: { totalCount: number; nodes: CommitContributionNode[] };
+}
+
+interface IssueRepoContributions {
+  repository: RepoData;
+  contributions: { totalCount: number; nodes: IssueContributionNode[] };
+}
+
+interface PRRepoContributions {
+  repository: RepoData;
+  contributions: { totalCount: number; nodes: PRContributionNode[] };
+}
+
+interface ReviewRepoContributions {
+  repository: RepoData;
+  contributions: { totalCount: number; nodes: ReviewContributionNode[] };
 }
 
 interface GraphQLContributionsResponse {
@@ -112,10 +160,10 @@ interface GraphQLContributionsResponse {
       createdAt: string;
       contributionsCollection: {
         totalCommitContributions: number;
-        commitContributionsByRepository: RepoContributionsByRepository[];
-        issueContributions: { totalCount: number };
-        pullRequestContributionsByRepository: RepoContributionsByRepository[];
-        pullRequestReviewContributionsByRepository: RepoContributionsByRepository[];
+        commitContributionsByRepository: CommitRepoContributions[];
+        issueContributionsByRepository: IssueRepoContributions[];
+        pullRequestContributionsByRepository: PRRepoContributions[];
+        pullRequestReviewContributionsByRepository: ReviewRepoContributions[];
         contributionCalendar: {
           weeks: {
             contributionDays: {
@@ -138,6 +186,30 @@ export interface RepoMetadata {
   topics?: string[];
 }
 
+export interface CommitContributionEntry {
+  repoNameWithOwner: string;
+  occurredAt: string;
+  commitCount: number;
+}
+
+export interface PRContributionEntry {
+  repoNameWithOwner: string;
+  occurredAt: string;
+  additions: number;
+  deletions: number;
+  merged: boolean;
+}
+
+export interface IssueContributionEntry {
+  repoNameWithOwner: string;
+  occurredAt: string;
+}
+
+export interface ReviewContributionEntry {
+  repoNameWithOwner: string;
+  occurredAt: string;
+}
+
 interface FetchContributionsResult {
   login: string;
   name: string | null;
@@ -152,6 +224,10 @@ interface FetchContributionsResult {
   linesDeleted: number;
   linesAddedAll: number;
   linesDeletedAll: number;
+  commitNodes: CommitContributionEntry[];
+  prNodes: PRContributionEntry[];
+  issueNodes: IssueContributionEntry[];
+  reviewNodes: ReviewContributionEntry[];
 }
 
 export async function fetchContributions(
@@ -212,13 +288,15 @@ export async function fetchContributions(
     });
   }
 
-  if (collection.issueContributions.totalCount > 0) {
-    contributions.push({
-      repoNameWithOwner: AGGREGATED_SENTINEL,
-      type: "issue",
-      count: collection.issueContributions.totalCount,
-      dateRange,
-    });
+  for (const repo of collection.issueContributionsByRepository) {
+    if (repo.contributions.totalCount > 0) {
+      contributions.push({
+        repoNameWithOwner: repo.repository.nameWithOwner,
+        type: "issue",
+        count: repo.contributions.totalCount,
+        dateRange,
+      });
+    }
   }
 
   for (const repo of collection.pullRequestContributionsByRepository) {
@@ -239,13 +317,32 @@ export async function fetchContributions(
     });
   }
 
-  // Sum lines added/deleted — merged only and all PRs
+  // Map per-node data
+  const commitNodes: CommitContributionEntry[] = [];
+  for (const repo of collection.commitContributionsByRepository) {
+    for (const node of repo.contributions.nodes) {
+      commitNodes.push({
+        repoNameWithOwner: repo.repository.nameWithOwner,
+        occurredAt: node.occurredAt,
+        commitCount: node.commitCount,
+      });
+    }
+  }
+
+  const prNodes: PRContributionEntry[] = [];
   let linesAdded = 0;
   let linesDeleted = 0;
   let linesAddedAll = 0;
   let linesDeletedAll = 0;
   for (const repo of collection.pullRequestContributionsByRepository) {
-    for (const node of (repo.contributions.nodes ?? [])) {
+    for (const node of repo.contributions.nodes) {
+      prNodes.push({
+        repoNameWithOwner: repo.repository.nameWithOwner,
+        occurredAt: node.occurredAt,
+        additions: node.pullRequest.additions,
+        deletions: node.pullRequest.deletions,
+        merged: node.pullRequest.merged,
+      });
       linesAddedAll += node.pullRequest.additions;
       linesDeletedAll += node.pullRequest.deletions;
       if (node.pullRequest.merged) {
@@ -255,23 +352,46 @@ export async function fetchContributions(
     }
   }
 
+  const issueNodes: IssueContributionEntry[] = [];
+  for (const repo of collection.issueContributionsByRepository) {
+    for (const node of repo.contributions.nodes) {
+      issueNodes.push({
+        repoNameWithOwner: repo.repository.nameWithOwner,
+        occurredAt: node.occurredAt,
+      });
+    }
+  }
+
+  const reviewNodes: ReviewContributionEntry[] = [];
+  for (const repo of collection.pullRequestReviewContributionsByRepository) {
+    for (const node of repo.contributions.nodes) {
+      reviewNodes.push({
+        repoNameWithOwner: repo.repository.nameWithOwner,
+        occurredAt: node.occurredAt,
+      });
+    }
+  }
+
   // C1: Sum all contribution types
+  const totalIssues = collection.issueContributionsByRepository.reduce(
+    (sum, r) => sum + r.contributions.totalCount,
+    0
+  );
   const totalPRs = collection.pullRequestContributionsByRepository.reduce(
-    (sum, r) => sum + r.contributions.totalCount, 0
+    (sum, r) => sum + r.contributions.totalCount,
+    0
   );
   const totalReviews = collection.pullRequestReviewContributionsByRepository.reduce(
-    (sum, r) => sum + r.contributions.totalCount, 0
+    (sum, r) => sum + r.contributions.totalCount,
+    0
   );
   const totalContributions =
-    collection.totalCommitContributions +
-    collection.issueContributions.totalCount +
-    totalPRs +
-    totalReviews;
+    collection.totalCommitContributions + totalIssues + totalPRs + totalReviews;
 
   // I3: Extract repo metadata for classification from all contribution types
   const metadataMap = new Map<string, RepoMetadata>();
 
-  function addRepoMetadata(repos: RepoContributionsByRepository[]) {
+  function addRepoMetadata(repos: { repository: RepoData }[]) {
     for (const repo of repos) {
       if (!metadataMap.has(repo.repository.nameWithOwner)) {
         metadataMap.set(repo.repository.nameWithOwner, {
@@ -287,6 +407,7 @@ export async function fetchContributions(
   }
 
   addRepoMetadata(collection.commitContributionsByRepository);
+  addRepoMetadata(collection.issueContributionsByRepository);
   addRepoMetadata(collection.pullRequestContributionsByRepository);
   addRepoMetadata(collection.pullRequestReviewContributionsByRepository);
 
@@ -309,6 +430,10 @@ export async function fetchContributions(
     linesDeleted,
     linesAddedAll,
     linesDeletedAll,
+    commitNodes,
+    prNodes,
+    issueNodes,
+    reviewNodes,
   };
 }
 
@@ -359,6 +484,10 @@ export async function fetchAllContributions(
       linesDeleted: 0,
       linesAddedAll: 0,
       linesDeletedAll: 0,
+      commitNodes: [],
+      prNodes: [],
+      issueNodes: [],
+      reviewNodes: [],
     };
   }
 
@@ -387,6 +516,10 @@ export async function fetchAllContributions(
     linesDeleted: results.reduce((sum, r) => sum + r.linesDeleted, 0),
     linesAddedAll: results.reduce((sum, r) => sum + r.linesAddedAll, 0),
     linesDeletedAll: results.reduce((sum, r) => sum + r.linesDeletedAll, 0),
+    commitNodes: results.flatMap((r) => r.commitNodes),
+    prNodes: results.flatMap((r) => r.prNodes),
+    issueNodes: results.flatMap((r) => r.issueNodes),
+    reviewNodes: results.flatMap((r) => r.reviewNodes),
   };
 
   return merged;

@@ -183,6 +183,6 @@ describe("GET /api/github/overview/[username]", () => {
     expect(response.status).toBe(200);
 
     const { getCached } = await import("@/lib/cache");
-    expect(getCached).toHaveBeenCalledWith("overview:2:testuser");
+    expect(getCached).toHaveBeenCalledWith("overview:3:testuser");
   });
 });

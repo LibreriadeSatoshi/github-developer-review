@@ -28,8 +28,8 @@ export async function GET(
   }
 
   // I4: Normalize cache key to lowercase
-  // Cache key v2: bumped to invalidate old entries that used /stats/contributors (returned 0)
-  const cacheKey = `overview:2:${username.toLowerCase()}`;
+  // Cache key v3: bumped to include per-node contribution data (commitNodes, prNodes, issueNodes, reviewNodes)
+  const cacheKey = `overview:3:${username.toLowerCase()}`;
 
   const cached = await getCached<DeveloperOverview>(cacheKey);
   if (cached) {

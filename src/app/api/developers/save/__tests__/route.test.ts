@@ -109,7 +109,7 @@ describe("POST /api/developers/save", () => {
 
     await callRoute({ username: "TestUser", programEntryDate: "" });
 
-    expect(mockGetCached).toHaveBeenCalledWith("overview:2:testuser");
+    expect(mockGetCached).toHaveBeenCalledWith("overview:3:testuser");
   });
 
   it("returns 400 for invalid date format", async () => {
