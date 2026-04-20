@@ -23,7 +23,7 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
             nodes { topic { name } }
           }
         }
-        contributions {
+        contributions(first: 100) {
           totalCount
           nodes {
             occurredAt
@@ -40,7 +40,7 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
             nodes { topic { name } }
           }
         }
-        contributions {
+        contributions(first: 100) {
           totalCount
           nodes {
             occurredAt
@@ -77,7 +77,7 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
             nodes { topic { name } }
           }
         }
-        contributions {
+        contributions(first: 100) {
           totalCount
           nodes {
             occurredAt
